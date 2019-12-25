@@ -1,0 +1,821 @@
+---
+title: RxJS
+date: 2019-07-10
+categories:
+  - 技术
+tags:
+  - js
+---
+
+## RxJS
+
+RxJS 提供了一套完整的非同步解決方案，讓我們在面對各種非同步行為，不管是 Event, AJAX, 還是 Animation 等，我們都可以使用相同的 API (Application Programming Interface) 做開發。
+
+一个核心：Observable
+三个重点：Observer、Subject、Schedulers
+
+### 什么是 Observable
+
+```plantuml
+@startuml
+Alice -> Bob: Authentication Request
+Bob --> Alice: Authentication Response
+
+Alice -> Bob: Another authentication Request
+Alice <-- Bob: Another authentication Response
+@enduml
+```
+
+**![ReactiveX](./ReactiveX.png)**
+
+- Functional Programming
+- Reactive Programming
+
+- Observer Pattern
+- Iterator Pattern
+
+订阅和退订
+
+```js
+let subscription = obserable.subscribe(observer)
+// ...
+subscription.unsubscribe()
+```
+
+- toPromise：将 Observable 对象转化成 Promise，注意不是 operator
+
+```js
+const prom = of(1).pipe(
+	delay(2000),
+).toPromise()
+
+prom.then(console.log)  // 1
+```
+
+### Observable 的创建
+
+- create
+
+```js
+Rx.Observable.create((observer) => {
+  let count = 0
+  let timer = setInterval(() => {
+  	observer.next(count++)
+    if (count > 5) {
+    	clearInterval(timer)
+    	observer.complete()
+    }
+  }, 1000)
+})
+```
+
+![create](http://od0gqumhm.bkt.clouddn.com/tx/rx-create.svg)
+
+
+- of：按照参数列表顺序，以同步方式发射
+
+```js
+Rx.Observable.of(1, 2)
+```
+
+- from：转换数组、字符串、集合、Promise 对象为 Observable 对象、Generator
+
+转换数组：
+
+```js
+const { from } = Rx
+from([1, 2])    // 相当于 of(1, 2)
+```
+
+转换字符串：
+
+```js
+const { from } = Rx
+from('hello')   // 相当于 of('h', 'e', 'l', 'l', 'o')
+```
+
+转换集合：
+
+```js
+const { from } = Rx
+let set = new Set()
+set.add(1)
+set.add(2)
+from(set)   // 相当于 of(1, 2)
+```
+
+转换 Promise 对象：
+
+```js
+const { from } = Rx
+let promise = new Promise((resolve) => {
+	setTimeout(_ => resolve(1), 1000)
+})
+from(promise)
+```
+
+- formEvent：将事件转换为 Observable 对象
+
+```js
+const { fromEvent } = Rx
+fromEvent(document, 'click')
+```
+
+- formEventPattern：将任何符合 addHandler/removeHandler 的 API 转换为 Observable 对象
+
+```js
+//
+const { fromEventPattern } = Rx
+function addListener (handle) {
+	document.addEventListener('click', handle)
+}
+function removeListener (handle) {
+	document.removeEventListener('click', handle)
+}
+fromEventPattern(addListener, removeListener)
+```
+
+- interval：间隔指定时间间隔发射数字序列，从 0 开始
+
+```js
+const { interval } = Rx
+interval(1000)
+```
+
+- timer：延迟指定时间，再按照指定时间间隔发射数字序列，从 0 开始
+
+```js
+const { timer } = Rx
+timer(1000, 2000)
+```
+
+- range：从指定数字开始，发射指定个数个数字，每次递增 1
+
+```js
+const { range } = Rx
+range(5, 2)
+```
+
+- throwError：创建一个错误的 Observable
+
+```js
+const { throwError } = Rx
+throwError(new Error('500'))
+```
+
+- empty：创建一个完成的 Observable
+
+```js
+const { empty } = Rx
+empty()
+```
+
+- never：创建一个永远不发射值、永远不发生错误、永远不完成的 Observable
+
+```js
+const { never } = Rx
+never()
+```
+
+### Observable 的合并
+
+- static concat：合并多个 Observable 对象，按顺序先后依次订阅每个 Observable 对象：
+
+> 前一个 Observable 对象完成，后一个 Observable 对象才有机会订阅；前一个 Observable 对象永远不完成，或者发生错误，后一个 Obervable 对象永远没有机会订阅
+
+> 只有所有 Observable 对象都完成，合并后的 Observable 对象才会完成。Observable 对象中任何一个错误，合并后的 Observable 对象也错误
+
+```js
+const { concat, timer } = Rx
+const { take } = RxOperators
+
+const streamA$ = timer(2000, 1000).pipe(take(5))
+const streamB$ = timer(2000, 1000).pipe(take(5))
+concat(streamA$, streamB$)
+```
+
+- static merge：合并多个 Observable 对象，同时订阅每个 Observable 对象：
+
+> 只有所有 Observable 对象都完成，合并后的 Observable 对象才会完成。Observable 对象中任何一个错误，合并后的 Observable 对象也错误
+
+```js
+const { merge, timer, throwError } = Rx
+const { take } = RxOperators
+
+const streamA$ = timer(500, 1000).pipe(take(5))
+const streamB$ = timer(1000, 1000).pipe(take(5))
+merge(streamA$, streamB$)
+```
+
+- static race：合并多个 Observable 对象，同时订阅每个 Observable 对象，当一个 Observable 率先发射值、完成、错误时，取消对另一个 Observable 对象的订阅
+
+> 即使两个 Observable 对象同时以同步的方式发射值、完成、错误，也只会选择一个先发射的 Observable 对象
+
+> 合并后的 Observable 对象的状态只取决于率先发射值、完成、错误的 Observable 对象，与其他的 Observable 对象完全没有关系
+
+```js
+const { race, timer, throwError } = Rx
+const { take } = RxOperators
+
+const streamA$ = timer(500, 1000).pipe(take(5))
+const streamB$ = timer(1000, 1000).pipe(take(5))
+race(streamA$, streamB$)
+```
+
+- static zip：订阅每个 Observable 对象，等待 Observable 对象相对索引都发射除了值时，合并之后的 Observable 对象发射一个数组，数组中的元素分别是合并的各个 Observable 对象对应索引位置发射的值。
+
+> 任何一个 Observable 对象完成，则合并之后的 Observable 对象完成；任何一个 Observable 对象错误，则合并之后的 Observable 对象错误。
+
+```js
+zip(
+    of(1, 2, 3, 4, 5),
+    interval(1000)
+).pipe(
+    map(([x]) => x)
+)
+```
+
+> 将一个同步发射值的 Observable 对象与 timer/interval Observable 对象做 zip 合并，可以让值定时输出
+
+- static combineLatest：合并多个 Observable 对象，同时订阅每个 Observable 对象，当某个 Observable 对象发射一个新的值时，合并后的 Observable 对象将发射一个数组，这个数组的每个元素分别是各个 Observable 对象的最后一次发射的值。注意：当存在一个 Observable 对象还没有发射值时，合并后的 Observable 对象也不会发射值。
+
+> 当所有 Observable 对象都完成时，合并后的 Observable 对象才会完成；当任意一个 Observable 对象发生错误，合并后的 Observable 对象也发生错误
+
+```js
+const { race, timer, interval, throwError, of, empty, combineLatest } = Rx
+const { take, map, concatAll, mergeAll, switchAll, zipAll, zip } = RxOperators
+
+const sourceA$ = of(1,2,3,4,5).pipe(
+	zip(timer(0, 2000)),
+  map(([x]) => x)
+)
+
+const sourceB$ = of(6,7,8,9,10).pipe(
+	zip(timer(1000, 2000)),
+  map(([x]) => x)
+)
+
+combineLatest(
+  sourceA$,
+  sourceB$
+)
+```
+
+- static forkJoin：合并多个 Observable 对象，只有当所有 Observable 对象都完成的时候，才会发射一个数组并完成，这个数组的每个元素分别为各个 Observable 对象的最新值
+
+```js
+const sourceA$ = of(1,2,3,4).pipe(
+	zip(timer(0, 2000)),
+  map(([x]) => x)
+)
+
+const sourceB$ = of(6,7,8,9).pipe(
+	zip(timer(1000, 2000)),
+  map(([x]) => x)
+)
+
+forkJoin(
+  sourceA$,
+  sourceB$
+)
+```
+
+> 这个合并操作常常用在页面初始化需要加载多个请求时，类似于 Promise 中的 Promise.all
+
+- concat：concat 合并 Observable 对象和另一个 Observable 对象，行为同静态 concat 方法
+- merge：merge 合并 Observable 对象和另一个 Observable 对象，行为同静态 merge 方法
+- race：race 合并 Observable 对象和另一个 Observable 对象，行为同静态 race 方法
+- zip: zip 合并 Observable 对象和另一个 Observable 对象，行为同静态 zip 方法
+
+```js
+of(1, 2, 3, 4, 5).pipe(
+	zip(interval(1000)),
+  map(([x]) => x)
+)
+```
+
+- combineLatest：combineLatest 合并 Observable 对象和另一个 Observable 对象，行为同静态 combineLatest 方法
+- withLatestFrom：与 combineLatest 操作符很像，但是只有当各个 Observable 对象都有新的发射值时，合并的 Observable 对象才会发射值
+
+```js
+const sourceA$ = of(1,2,3,4,5).pipe(
+	zip(timer(0, 2000)),
+  map(([x]) => x)
+)
+
+const sourceB$ = of(6,7,8,9,10).pipe(
+	zip(timer(1000, 2000)),
+  map(([x]) => x)
+)
+
+sourceA$.pipe(
+	withLatestFrom(sourceB$)
+)
+```
+
+> Observable 对象发射的值还是一个 Observable 对象，称为高阶 Observable 对象，Rxjs 提供 concatAll、mergeAll 操作符合并高阶 Observable 对象的发射的 Observable 对象e
+
+- concatAll
+
+```js
+const { race, timer, interval, throwError, of, empty } = Rx
+const { take, map, concatAll, mergeAll, switchAll } = RxOperators
+
+const streams = [
+  timer(500, 1000).pipe(
+    take(5)
+  ),
+  timer(1000, 1000).pipe(
+    take(5)
+  )
+]
+
+interval(100).pipe(
+	take(2),
+  map(x => streams[x]),
+  concatAll()
+)
+```
+
+- mergeAll
+
+```js
+const { race, timer, interval, throwError, of, empty } = Rx
+const { take, map, concatAll, mergeAll, switchAll } = RxOperators
+
+const streams = [
+  timer(500, 1000).pipe(
+    take(5)
+  ),
+  timer(1000, 1000).pipe(
+    take(5)
+  )
+]
+
+interval(100).pipe(
+	take(2),
+  map(x => streams[x]),
+  mergeAll()
+)
+```
+
+- switchAll 据说有这个方法，但是文档中没有
+- zipAll 同理
+- combineAll 同理
+
+> Rxjs 中的 *Map 操作符，实际上是通过两个步骤：1. 将每个发射值映射成一个 Observable 对象，原 Observable 对象变成高阶 Observable 对象；2. 通过对应的组合逻辑处理这个高阶 Observable 对象。
+
+- concatMap
+
+```js
+interval(100).pipe(
+    take(2),
+    map(x => streams[x]),
+    concatAll()
+)
+// 等价于
+interval(100).pipe(
+	take(2),
+	concatMap(x => streams[x])
+)
+```
+
+- mergeMap 同理
+- switchMap 同理
+
+
+- exhaust：当第一个发射的 Observable 还没有完成时，忽略这期间新的发射值直到正在处理的 Observable 对象完成，然后才开始接收新的发射值
+- exhaustMap
+
+#### 拼接、过滤操作
+
+- startWith：在 Observable 对象开始发射值前插入几个值，以同步的方式发射
+
+```js
+const { of, interval } = Rx;
+const { take, startWith, zip, map } = RxOperators;
+
+of(2, 3).pipe(
+  startWith(0, 1),
+  zip(interval(1000)),
+  map(([x]) => x)
+)
+```
+
+- filter：从源 Observable 对象中取出符合条件的发射值
+
+```js
+// 大于 2 的偶数
+of(0, 1, 2, 3, 4).pipe(
+	filter(x => x > 2 && x % 2 === 0)
+)
+// 取 5 个值
+of(0, 1, 2, 3, 4).pipe(
+	filter((_, index) => index <= 5)
+)
+```
+
+- first：从源 Observable 对象中取出第一个或者符合条件的第一个发射值
+
+```js
+// 取第一个值
+of(0, 1, 2).pipe(
+  first()
+)
+// 取大于 0 的第一个值
+of(0, 1, 2).pipe(
+    first(x => x > 0)
+)
+```
+
+- last：与 first 相反，从源 Observable 对象取出最后一个或者符合条件的最后一个发射值
+
+- take：从源 Observable 对象取出前 n 个发射值
+
+```js
+of(0, 1, 2).pipe(
+  take(2),
+  zip(interval(1000)),
+  map(([x]) => x)
+)
+```
+
+- takeLast：从源 Observable 对象取出最后 n 个发射值，当源 Observable 对象完成时以同步的方式发射出来
+
+- takeUntil：从源 Observable 对象 取出发射值，直到参数 notifier Observable 发射第一个值
+
+```js
+//  取 5s 内的发射值
+interval(1000).pipe(
+	takeUntil(timer(5000))
+)
+```
+
+- takeWhile：从源 Observable 对象取出发射值，直到参数 notifier 函数不满足
+
+```js
+//  一直取值直到发射值大于等于 5
+interval(1000).pipe(
+	takeWhile(x => x < 5)
+)
+```
+
+- skip：跳过源 Observable 对象发射的前几个值
+
+
+```js
+// 跳过前两个值
+of(0, 1, 2, 3, 4).pipe(
+	skip(2)
+)
+```
+
+- skipUntil：跳过源 Observable 对象发射的值，直到参数 notifier Observable 发射第一个值
+
+```js
+// 跳过前 5s 发射的值
+interval(1000).pipe(
+	skipUntil(timer(5000))
+)
+```
+
+- skipWhile：跳过源 Observable 对象发射的值，直到参数 notifier 函数不满足
+
+```js
+// 跳过发射直直到发射值大于等于 5
+interval(1000).pipe(
+	skipWhile(x => x < 5)
+)
+```
+
+- single：从源 Observable 对象取出唯一一个符合条件的发射值，如果没有符合条件的或者存在多个符合条件的发射指，分别抛出 NoSuchElementException 和 IllegalArgumentException
+
+- sample：当 sampler Observable 对象发出值时，从源 Observable 取发射值
+
+```js
+// 每隔 2s 取一个值	=> 1 3 5 ...
+interval(1000).pipe(
+  sample(interval(2000))
+)
+```
+
+- distinct：忽略所有发射过的值
+
+```js
+// 1,2,3,4,5
+of(1, 2, 3, 4, 5, 4, 3, 2, 1).pipe(
+	delayWhen(x => timer(x * 1000)),
+	distinct()
+)
+```
+
+- distinctUntilChanged：从源 Observable 对象取出与上一个发射值不同的值
+
+```js
+of(1, 1, 2, 2, 3, 3, 4, 4).pipe(
+	zip(interval(1000)),
+  map(([x]) => x),
+  distinctUntilChanged()
+)
+```
+
+- ignoreElements：忽略所有值
+
+```js
+of(1, 1, 2, 2, 3, 3, 4, 4).pipe(
+	zip(interval(1000)),
+  map(([x]) => x),
+  ignoreElements()
+)
+```
+
+- debounceTime：取出源 Observable 对象中发射后指定时间内没有新的值发射的发射值
+
+```js
+fromEvent(document, 'click').pipe(
+	debounceTime(1000)
+)
+```
+
+- debounce：取出源 Observable 对象中发射后，参数 durationSelector 函数返回的 Observable 对象首次发射值之前没有新的值发射的发射值。使用没有 debounceTime 广泛，提供更高的灵活性
+
+- throttleTime：指定时间后，取出这个时间段内的最新值
+
+```js
+fromEvent(document, 'mousemove').pipe(
+	throttleTime(1000)
+)
+```
+
+- throttle：使用没有 throttleTime 广泛，提供更高的灵活性
+
+#### 转换操作
+
+- map：映射每个发射值
+
+```js
+interval(1000).pipe(
+    take(4),
+ 	map(x => x * x)
+)
+```
+
+- mapTo：映射每个发射值到一个常量
+
+```js
+interval(1000).pipe(
+    take(4),
+ 	mapTo(1)
+)
+```
+
+- pluck：映射每个发射值到指定属性
+
+```js
+const people = [
+  {name: 'David', age: 25},
+  {name: 'Mary', age: 18},
+  {name: 'Jane', age: 20}
+]
+
+from(people).pipe(
+  pluck('name'),
+  zip(interval(1000)),
+  map(([x]) => x)
+)
+```
+
+- reduce：对每个发射值进行归一化处理，当 Observable 对象完成时，发射这个归一化的值
+
+```js
+interval(1000).pipe(
+  take(4),
+  reduce((acc, val) => acc + val)
+)
+```
+
+- scan：对每个发射值进行归一化处理，当 Observable 对象有新值发射时将临时归一化结果发射，而不需要等到 Observable 对象完成，这是与 reduce 的区别：
+
+```js
+interval(1000).pipe(
+  take(4),
+  scan((acc, val) => acc + val)
+)
+```
+
+- toArray：合并所有的发射值作为一个数组，在 Observable 对象完成时发射
+
+```js
+interval(1000).pipe(
+  take(4),
+  toArray()
+)
+```
+
+- groupBy：按照条件对发射值进行分组，每个分组形成一个 Observable 对象，源 Observable 对象成为发射分组 Observable 对象的的高阶 Observable 对象
+
+```js
+from(people).pipe(
+  groupBy(person => person.age),
+  mergeMap(group => group.pipe(toArray())),
+)
+```
+
+- partition：按照指定条件将 Observable 对象分成两部分，返回一个包含两个分 Observable 对象的数组
+
+```js
+let [even, odd] = of(0, 1, 2, 3, 4, 5).pipe(
+	partition(x => x % 2 === 0)
+)
+```
+
+- expand：每次发射值后调用函数，函数返回一个 Observable 对象，这个对象会和源 Observable 对象 merge 合并
+
+```js
+of(2).pipe(
+	expand(x => x < 5 ? of(x + 1) : empty()),
+    zip(interval(1000)),
+    map(([x]) => x)
+)
+```
+
+- buffer：将发射值缓存，当参数 Observable 对象发射值时，将缓存的所有值作为数组发射，并清空缓存
+
+interval(1000).pipe(
+  buffer(fromEvent(document, 'click'))
+)
+
+- bufferCount：每次缓存指定个数个发射值，缓存满后就作为数组发射出
+
+```js
+interval(1000).pipe(
+  bufferCount(2)
+)
+```
+
+- bufferTime：每次缓存指定时间内的发射值，当时间到后作为数组发射出
+
+```js
+interval(1000).pipe(
+  bufferTime(1500)
+)
+```
+
+- bufferToggle：第一个参数 Observable 发射值时开始缓存发射值，第二个参数 Observable 对象发射值时关闭缓存，并将缓存的值作为数组发射
+
+```js
+// 按下开始缓存发射值，放开作为数组发射
+interval(1000).pipe(
+  bufferToggle(
+  	fromEvent(document, 'mousedown'),
+    () => fromEvent(document, 'mouseup')
+  )
+)
+```
+
+- bufferWhen：默认缓存发射值，直到参数函数中返回的 Observable 对象发射值时将缓存值作为数组发射
+
+```js
+// 放开作为数组发射
+interval(1000).pipe(
+  bufferWhen(
+    () => fromEvent(document, 'mouseup')
+  )
+)
+```
+
+- window：与 buffer 类似，但是缓存值以 Observable 对象的方式发出，而不是数组形式
+- windowCount
+- windowTime
+- windowToggle
+- windowWhen
+
+- delay: 延时指定时间发射值
+
+```js
+of(1).pipe(
+	delay(1000)
+)
+```
+
+- delayWhen：可以分开指定每个发射值延时的时间
+
+```js
+of(1, 2).pipe(
+	delayWhen((x) => timer(x * 1000))
+)
+```
+
+- do/tap：透明地执行操作或副作用，比如打印日志
+
+```js
+of(1, 2).pipe(
+	delayWhen((x) => timer(x * 1000)),
+  tap(console.log)
+)
+```
+
+- timeout：在指定时间间隔内不发出值就报错
+
+```js
+of(1).pipe(
+    delay(2000),
+    timeout(1000)
+)
+```
+
+#### 错误处理
+
+- catchError：捕捉异常，返回一个 Observable 对象，这个 Observable 对象将在发生异常的地方拼接到源 Observable 对象上
+
+```js
+of(1, 2, 3, 4, 5).pipe(
+	delayWhen(x => timer(x * 1000)),
+  map(x => {
+  	if (x > 3){
+     throw new Error('不能大于3！')
+    } else {
+      return x
+    }
+  }),
+  catchError(x => empty())
+)
+```
+
+- retry：捕捉到异常，重试指定次数。重试指的是重新订阅，相当于 catchError 中返回了源 Observable 对象
+
+```js
+of(1, 2, 3, 4, 5).pipe(
+	delayWhen(x => timer(x * 1000)),
+  map(x => {
+  	if (x > 3){
+     throw new Error('不能大于3！')
+    } else {
+      return x
+    }
+  }),
+  retry(2)
+)
+```
+
+- retryWhen：常用来做错误收集，retryWhen 参数函数中接收一个由错误信息组成的 Observable 对象，可以对其记录日志，上传错误信息到服务器等操作；返回一个 Observable 对象，当这个 Observable 完成的时候，重新订阅源 Observable 对象，否则不重新订阅。
+
+```js
+// 记录错误日志并且延时 2s 重试
+of(1, 2, 3, 4, 5).pipe(
+	delayWhen(x => timer(x * 1000)),
+  map(x => {
+  	if (x > 3){
+     throw new Error('不能大于3！')
+    } else {
+      return x
+    }
+  }),
+  retryWhen(errors => errors.pipe(
+  	tap(x => console.log('error', x)),
+    delayWhen(_ => timer(2000))
+  ))
+)
+```
+
+```js
+// 不重试，直接完成
+of(1, 2, 3, 4, 5).pipe(
+	delayWhen(x => timer(x * 1000)),
+  map(x => {
+  	if (x > 3){
+     throw new Error('不能大于3！')
+    } else {
+      return x
+    }
+  }),
+  retryWhen(errors => empty())
+)
+```
+
+```js
+// 不重试直接错误
+of(1, 2, 3, 4, 5).pipe(
+	delayWhen(x => timer(x * 1000)),
+  map(x => {
+  	if (x > 3){
+     throw new Error('不能大于3！')
+    } else {
+      return x
+    }
+  }),
+  retryWhen(errors => throwError())
+)
+```
+
+### 参考
+
+- [中文文档](https://cn.rx.js.org/)
+- [官方地址](https://github.com/ReactiveX/rxjs)
+- [学习 RxJS](https://rxjs-cn.github.io/learn-rxjs-operators/)
+- [Rx Visualizer - 可视化学习](https://rxviz.com/)
+- [rxfiddle - 可调试](https://rxfiddle.net/)
+- [RxJS: 使用超直观的交互图来学习组合操作符](https://zhuanlan.zhihu.com/p/39359316)
+- [RxJS Marbles](http://rxmarbles.com/)
+- [The introduction to Reactive Programming you've been missing](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754)
+- [30 天精通 RxJS 系列](https://ithelp.ithome.com.tw/users/20103367/ironman/1199)

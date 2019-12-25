@@ -23,6 +23,12 @@ module.exports = {
         extensions: [`.mdx`, `.md`],
         gatsbyRemarkPlugins: [
           {
+            resolve: `gatsby-remark-images`,
+            options: {
+              maxWidth: 1200,
+            },
+          },
+          {
             resolve: `gatsby-remark-katex`,
             options: {
               // Add any KaTeX options from https://github.com/KaTeX/KaTeX/blob/master/docs/options.md here
@@ -43,6 +49,12 @@ module.exports = {
         theme_color: `#252526`,
         display: `minimal-ui`,
         icon: `favicon.png`, // This path is relative to the root of the site.
+      },
+    },
+    {
+      resolve: `gatsby-plugin-postcss`,
+      options: {
+        postCssPlugins: [require(`postcss-preset-env`)({ stage: 0 })],
       },
     },
     // this (optional) plugin enables Progressive Web App + Offline functionality

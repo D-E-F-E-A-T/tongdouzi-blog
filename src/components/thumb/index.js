@@ -3,6 +3,7 @@ import styled from 'styled-components'
 import { Link } from 'gatsby'
 import { MDXRenderer } from 'gatsby-plugin-mdx'
 import { MDXProvider } from '@mdx-js/react'
+import GatsbyImage from 'gatsby-image'
 
 const Post = styled(Link)`
   display: flex;
@@ -21,7 +22,7 @@ const Post = styled(Link)`
   }
 `
 
-const FeatureImage = styled.img`
+const FeatureImage = styled(GatsbyImage)`
   width: 100%;
   height: auto;
 `
@@ -55,27 +56,27 @@ const Excerpt = styled.p`
   word-break: break-all;
 `
 
-const Wrapper = function ({ _frontmatter, children }) {
+const Wrapper = function ({ excerpt, frontmatter, fields }) {
   return (
-    <Post to={_frontmatter.path}>
+    <Post to={fields.path}>
       {
-        _frontmatter.featureImage && <FeatureImage src={_frontmatter.featureImage} alt={_frontmatter.title} />
+        frontmatter.featureImage && <FeatureImage {...frontmatter.featureImage.childImageSharp} alt={frontmatter.title} />
       }
       <Text>
         {
-          _frontmatter.categories && _frontmatter.categories.length && <Category>{_frontmatter.categories.join(` & `)}</Category>
+          frontmatter.categories && frontmatter.categories.length && <Category>{frontmatter.categories.join(` & `)}</Category>
         }
-        <Title>{_frontmatter.title}</Title>
-        <Excerpt>{_frontmatter.excerpt}</Excerpt>
+        <Title>{frontmatter.title}</Title>
+        <Excerpt>{excerpt}</Excerpt>
       </Text>
     </Post>
   )
 }
 
-export default ({ body }) => {
+export default ({ body, ...postProps }) => {
   return (
     <MDXProvider components={{
-      'wrapper': Wrapper,
+      'wrapper': (mdxProps) => <Wrapper {...mdxProps} {...postProps} />,
     }}>
       <MDXRenderer>{ body }</MDXRenderer>
     </MDXProvider>

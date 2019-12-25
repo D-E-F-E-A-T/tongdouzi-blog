@@ -23,7 +23,7 @@ export default function ({ data: { allMdx: { edges } } }) {
       <Posts>
         {
           edges.map(edge => (
-            <Thumb key={edge.node.id} body={edge.node.body} />
+            <Thumb key={edge.node.id} {...edge.node} />
           ))
         }
       </Posts>
@@ -32,13 +32,25 @@ export default function ({ data: { allMdx: { edges } } }) {
 }
 
 export const pageQuery = graphql`
-  query MyQuery {
+  query {
     allMdx {
       edges {
         node {
-          id,
+          id
           frontmatter {
             title
+            date(formatString: "YYYY-MM-DD")
+            categories
+            featureImage  {
+              childImageSharp {
+                fluid(maxWidth: 400) {
+                  ...GatsbyImageSharpFluid
+                }
+              }
+            }
+          }
+          fields {
+            path
           }
           excerpt(pruneLength: 100)
           body

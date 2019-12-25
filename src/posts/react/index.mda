@@ -1,0 +1,75 @@
+---
+title: React
+date: 2019-10-22
+categories:
+  - 技术
+tags:
+  - js
+---
+
+给发个广告给发个广告给发个广告给发个广告给发个广告
+
+<!-- `Scheduler.unstable_now` 的实现在 `Scheduler/SchedulerHostConfig.js` 文件中 `getCurrentTime()`，而这个文件在 jest 环境中被 mock 到了 `scheduler/src/forks/SchedulerHostConfig.mock.js`：
+
+```js
+// scripts/jest/setupHostConfigs.js
+jest.mock('scheduler/src/SchedulerHostConfig', () =>
+  require.requireActual('scheduler/src/forks/SchedulerHostConfig.mock.js')
+);
+```
+
+这个文件中的 `getCurrentTime()` 一辈子都只会返回 0，因此替换要替换成 `scheduler/src/forks/SchedulerHostConfig.default.js` 文件：
+
+```js
+// scripts/jest/setupHostConfigs.js
+jest.mock('scheduler/src/SchedulerHostConfig', () =>
+  require.requireActual('scheduler/src/forks/SchedulerHostConfig.default.js')
+);
+```
+
+React 源码中的 jest 测试环境的 timers 配置项默认用的是 `'fake'`，可以修改 `scripts/jest/config.base.js` 改成 `'real'` -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 怎么方便理解 React 中的 expirationTime
+
+公元历法中的时间，侧重表达距离从前耶稣诞生过了多长时间，因此定义一个“公元0年”标记耶稣诞生时间点。公元 2019 年，表示距离耶稣诞生已经过了 2019 - 0 = 2019 年。
+React中的 expiration 时间，侧重表达距离未来执行还剩下多长时间，因此定义一个 `MAGIC_NUMBER_OFFSET` 标记执行时间点。
+
+妈的好烧脑阿。
+
+公元2019年，就是距离耶稣诞生过了2019年。公元0年标记耶稣诞生。
+React 中，
+
+
+expirationTime 的定义：
+expirationTime 是一种 React 的时间表示方法，但是和生活中用的时间不一样。
+
+生活中的时间侧重表达现在距离从前某一个时间点过了多长时间，例如在
+React 的时间侧重表达距离未来执行还有多长时间，规定 MAGIC_NUMBER_OFFSET 是
+
+
