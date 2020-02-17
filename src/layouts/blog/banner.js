@@ -84,12 +84,12 @@ const Drops = styled.div`
 const Containner = styled.div`
   position: relative;
   width: 100%;
-  padding: 5vw 10px 6vw;
+  padding: 5vw 10px 10vw;
   box-sizing: border-box;
   color: red;
   background: #111;
   overflow: hidden;
-  margin-bottom: -40px;
+  margin-bottom: -7vw;
   ${Glass} {
     filter: blur(8px);
   }

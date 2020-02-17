@@ -1,6 +1,6 @@
 import React from 'react'
 import Banner from './banner'
-import Heaeder from './header'
+// import Heaeder from './header'
 import styled, { createGlobalStyle } from 'styled-components'
 import styledNormalize from 'styled-normalize'
 
@@ -20,7 +20,7 @@ const GlobalStyle = createGlobalStyle`
 
     table-layout: fixed;
     word-wrap: break-word;
-    word-break: normal;
+    word-break: break-all;
     text-align: justify;
     text-justify: inter-ideograph;
 
@@ -49,7 +49,7 @@ export default function ({ children }) {
     <>
       <GlobalStyle />
       <Banner />
-      <Heaeder />
+      {/* <Heaeder /> */}
       <SiteContainer>
         <SiteMain>
           <SiteMainContent>

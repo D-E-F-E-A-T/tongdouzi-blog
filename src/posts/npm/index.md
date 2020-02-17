@@ -33,3 +33,15 @@ https://www.jianshu.com/p/aaa7db89a5b2
 npm scope
 
 再看看九头蛇这种符合仓库是怎么做的？
+
+node 环境下使用 es modules
+
+https://blog.csdn.net/universsky2015/article/details/83754741
+
+1. 将文件后缀改为 .mjs
+
+2. 使用babel插件将es6转码为es5
+
+3. babel-node
+
+https://blog.csdn.net/universsky2015/article/details/83754741

@@ -4,7 +4,6 @@ import { UnControlled as CodeMirror } from 'react-codemirror2'
 import 'codemirror/lib/codemirror.css'
 import 'codemirror/theme/monokai.css'
 import 'codemirror/mode/xml/xml'
-import 'codemirror/mode/javascript/javascript'
 import 'codemirror/mode/jsx/jsx'
 import 'codemirror/mode/shell/shell'
 
@@ -28,13 +27,14 @@ const Containner = styled.div`
     padding-left: 12px;
     padding-left: 12px;
     border-radius: 5px;
-    font-family: Hack, monospace !important;
+    font-family: Menlo, Monaco, 'Courier New', monospace !important;
     font-size: 14px;
     line-height: 133%;
     font-variant-ligatures: contextual;
     font-feature-settings: 'calt' 1;
     user-select: none;
   }
+
   & .CodeMirror-scroll, & .CodeMirror-hscrollbar {
     overflow: hidden !important;
   }
@@ -54,7 +54,8 @@ const Containner = styled.div`
 
 export default ({ children, className = '' }) => {
   let mode = className.split('-')[1] || 'plaintext'
-  if (mode === 'js' || mode === 'javascript') mode = 'jsx'
+  if (mode === 'js' || mode === 'javascript' || mode === 'json') mode = 'jsx'
+  console.warn('mode', mode)
   return (
     <Containner>
       {/* <WindowControls
@@ -64,9 +65,9 @@ export default ({ children, className = '' }) => {
           light={light}
         /> */}
       <CodeMirror
-        // ref={this.props.editorRef}
         className={`CodeMirror__container window-theme__none`}
-        value={children}
+        // 去除首位换行符
+        value={children.replace(/^\r?\n+|\r?\n+$/g, '')}
         options={{
           lineNumbers: true,
           firstLineNumber: 1,
@@ -74,8 +75,9 @@ export default ({ children, className = '' }) => {
           theme: 'monokai',
           scrollBarStyle: null,
           viewportMargin: Infinity,
-          lineWrapping: true,
+          lineWrapping: false,
           smartIndent: true,
+          tabSize: 2,
           extraKeys: {
             'Shift-Tab': 'indentLess'
           },

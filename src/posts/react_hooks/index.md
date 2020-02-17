@@ -9,6 +9,9 @@ tags:
 featureImage: ./hooks.png
 ---
 
+import useEffectGif from './useEffectGif.gif'
+import useLayoutEffectGif from './useLayoutEffectGif.gif'
+
 # React Hooks
 
 React 16.8 版本中加入了一个重要的特性 - Hooks，这个特性让你不必依赖 Class Compnents 也可以使用 state、生命周期等其他特性。
@@ -785,7 +788,7 @@ function App () {
 export default App;
 ```
 
-![264aeefd.png](./264aeefd.png)
+![useCallback.png](./useCallback.png)
 
 为了减少不必要的渲染，节省性能损耗，React 为 Class Components 提供一个 shouldComponentUpdate() 生命周期钩子，shouldComponentUpdate() 让 React 知道组件的输出是否收到当前 state、props 的影响，当 shouldComponentUpdate() 返回 true 时，组件会重新渲染，否则组件不重新渲染。并且基类 Component shouldComponentUpdate() 总是返回 true，而 PureComponent shouldComponentUpdate() 中会对当前的 state、props 和之前的 state、props 做一次浅比较，没有更新则返回 false，有更新返回 true。
 
@@ -824,7 +827,7 @@ function App () {
 export default App;
 ```
 
-![Jietu20190801-205923.jpg](./2e34b15b.jpg)
+![shouldComponentUpdate.jpg](./shouldComponentUpdate.jpg)
 
 Function Component 可以使用 React.memo() 实现类似效果，React.memo() 是一个高阶组件，默认对组件的 props 进行浅比较。也可以用一个自定义规则比较函数作为第二个参数：
 
@@ -857,9 +860,9 @@ function App () {
 export default App;
 ```
 
-![5030252a.png](./5030252a.png)
+![memo.png](./memo.png)
 
-了解了 PureComponent 和 React.memo() 通过浅比较来避免重复渲染带来的性能损耗，但是在无论使用 Function Components 还是 Function Components 都不可避免使用到大量的行内函数作为 props 传递到自组件，每次渲染，都会生成新的函数，通过浅比较的结果是这个 props 发生变化，需要重新渲染组件。
+了解了 PureComponent 和 React.memo() 通过浅比较来避免重复渲染带来的性能损耗，但是在无论使用 Function Components 还是 Function Components 都不可避免使用到大量的行内函数作为 props 传递到子组件，每次渲染，都会生成新的函数，通过浅比较的结果是这个 props 发生变化，需要重新渲染组件。
 
 ```js
 import React, { memo, useEffect, useState } from 'react';
@@ -890,7 +893,7 @@ function App () {
 export default App;
 ```
 
-![264aeefd.png](./3a472e94.png)
+![行内函数.png](./inlineFunction.png)
 
 useCallback() hooks 的目的就在于缓存了每次渲染时行内函数的实例，当依赖项没有变化时，总是返回缓存的行内函数实例，配合 PureComponent 或者 React.memo() 来避免比必要的渲染：
 
@@ -923,7 +926,7 @@ function App () {
 export default App;
 ```
 
-![ffa2cec3.png](./ffa2cec3.png)
+![useCallback避免重复渲染.png](./useCallback避免重复渲染.png)
 
 useMemo() hooks 是 useCallback() 的通用版，缓存的值不再局限于函数，可以是任何值。useCallback(fn, deps) 相当于 useMemo(() => fn, deps)
 
@@ -1009,7 +1012,7 @@ function App () {
 export default App;
 ```
 
-![nz85t-idupm.gif](./1b74ae1d.gif)
+<img src={useEffectGif} alt="useEffectAnimate" />
 
 而使用 useLayoutEffect() 可以完美规避这个问题：
 
@@ -1062,4 +1065,4 @@ function App () {
 export default App;
 ```
 
-![ultlb-735p7.gif](./763a4cba.gif)
+<img src={useLayoutEffectGif} alt="useLayoutEffectGif" />
