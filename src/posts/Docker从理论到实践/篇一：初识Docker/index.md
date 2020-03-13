@@ -134,55 +134,6 @@ docker port containerId
 
 镜像由多个只读层叠加而成，创建容器时，Docker 会加载只读镜像层并在镜像层的顶部添加一个读写层
 
-联合挂载机制
-写时复制 - COW 机制：运行中的容器修改了现有的一个已经存在的文件，该文件将会从读写层下面的只读层复制到读写层，该文件的只读版本仍然存在于只读层中，只是读写层中该文件的副本所隐藏
-
-这种写时复制机制，势必造成磁盘读写效率不高，满足不了诸如 mysql、redis 等 I/O 密集的应用程序对 I/O 性能的要求。这种场景下可以通过存储卷的形式绕过联合挂载的文件系统。
-
-volume
-存储卷是容器中的一个目录，这个目录可以绕过联合文件系统，与宿主机上个的某个目录绑定
-
-将宿主系统上的一个文件或者目录，直接映射到容器中，在容器内部对这个文件或目录的读写操作，相当于直接对宿主系统上的文件和目录进行操作。
-
-实际上，存储卷机制，是在两个隔离的 Mount 用户空间，在某个子路径上建立绑定关系，实现共享。
-
-联合文件系统存在的问题：
-
-- 宿主机与容器共享数据不便
-- 容器间共享数据不便
-- 删除容器，数据会丢失
-
-<!-- 数据脱离容器生命周期而持久化保存、 -->
-存储卷好处：
-
-- 宿主机和容器间共享数据
-- 持久化存储
-
-删除容器时，不会删除卷
-卷也是 docker deamon 可管理的一种资源
-
-镜像是程序、容器是进程、卷是数据，因此镜像可以复用，数据可以共享
-
-```shell
-# Docker 在宿主机上自动生成一个目录，与容器内的 /data 绑定，这种卷称为 docker 管理卷 - docker managed volume
-docker run -it --name b1 -v /data busybox
-# 宿主机上的 /usr/loacl/data 目录，与容器内的 /data 绑定，这种卷称为绑定挂载点卷 - bind mount volume
-docker run -it --name b2 -v /usr/loacl/data:/data busybox
-# 直接复用另外一个容器的卷配置
-docker run -it --name b2 --volumes-form b1 busybox
-
-docker inspect b1 的 Mounts 字段里可以查看具体映射关系
-docker inspect -f {{.Mounts}} b1  # 指定模板查看 json 数据
-docker inspect -f {{.NetworkingSettings.IPAddress}} b1  # 指定模板查看 json 数据
-```
-
-两个容器通过卷映射宿主同一个目录，则两个容器实现了数据共享
-
-实际使用中，经常使用一个不会运行的基础架构容器，其他具有生产功能的容器复用基础架构容器的卷配置和网络配置：
-
-```shell
-docker run -it --name b1 --network container:b --volumes-form b busybox
-```
 
 容器编排工具：能够记录下容器的启动命令，启动参数什么的，这也是容器编排工具的作用。容器编排可以让一系列具有依赖关系的容器先后按照顺序启动
 
@@ -201,3 +152,69 @@ https://support-it.huawei.com/docs/zh-cn/hcs-6.5.0/scenarized/zh-cn_topic_015990
 
 https://blog.csdn.net/deng624796905/article/details/86493330
 
+
+## docker 的基本使用
+
+![Docker 常用命令梳理](./docker常用命令.jpg)
+
+### 镜像管理
+
+使用 `docker search` 命令可以从 docker hub 搜索仓库：
+
+```shell
+➜  ~ docker search busybox
+NAME                      DESCRIPTION                                     STARS               OFFICIAL            AUTOMATED
+busybox                   Busybox base image.                             1777                [OK]
+progrium/busybox                                                          71                                      [OK]
+radial/busyboxplus        Full-chain, Internet enabled, busybox made f…   26                                      [OK]
+arm32v7/busybox           Busybox base image.                             8
+```
+
+这个命令可以列举出 Docker Hub 上所有的官方仓库和用户仓库，仓库名称使用 `/` 分割的是用户仓库，如 `progrium/busybox`，没有分割的是官方仓库，如 `nginx`
+
+每个仓库里面有很多个使用 tag 标记的镜像，docker 命令中目前没有直接显示仓库下所有 tag 的命令，因此最好还是去 [Docker Hub](https://hub.docker.com/) 查看。
+
+使用 `docker pull` 命令将仓库注册服务器上的镜像拉取到本地：
+
+```shell
+➜  ~ docker pull busybox:1.31.1
+1.31.1: Pulling from library/busybox
+bdbbaa22dec6: Pull complete
+Digest: sha256:6915be4043561d64e0ab0f8f098dc2ac48e077fe23f488ac24b665166898115a
+Status: Downloaded newer image for busybox:1.31.1
+docker.io/library/busybox:1.31.1
+```
+
+拉取镜像需要指定 tag，没有指定 tag，则默认拉取这个仓库下的 latest 标签标记的镜像。
+
+使用 `docker images/docker image ls` 命令可以列举出所有本地已下载的镜像
+
+```shell
+➜  ~ docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+busybox             1.31.1              6d5fcfe5ff17        4 weeks ago         1.22MB
+nginx               1.17.6-alpine       a624d888d69f        2 months ago        21.5MB
+```
+
+使用 `docker rmi/docker image rm` 命令可以删除本地的镜像：
+
+```shell
+➜  ~ docker rmi busybox:1.31.1
+Untagged: busybox:1.31.1
+Untagged: busybox@sha256:6915be4043561d64e0ab0f8f098dc2ac48e077fe23f488ac24b665166898115a
+Deleted: sha256:6d5fcfe5ff170471fcc3c8b47631d6d71202a1fd44cf3c147e50c8de21cf0648
+Deleted: sha256:195be5f8be1df6709dafbba7ce48f2eee785ab7775b88e0c115d8205407265c5
+➜  ~ docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+nginx               1.17.6-alpine       a624d888d69f        2 months ago        21.5MB
+```
+
+注意，如果存在用这个镜像创建的容器，这个镜像是不能被删除的，需要先删除所有使用这个镜像创建的容器才能够删除这个镜像。
+
+- commit/build/push
+- load/import
+
+
+### 启动容器
+
+当一个namespace里面的所有进程都退出时，namespace也会被销毁，所以抛开进程谈namespace没有意义

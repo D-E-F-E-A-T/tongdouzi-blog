@@ -67,4 +67,35 @@ k8s 集群中所有的主机分成两类：
 
 masters 在同一个集群中可以有多个，但是只是做冗余。平时只有一个 master 发出指令管理 nodes，当这个 master 突然宕机时，备用的 master 能够立刻接替指挥工作，避免整个集群瘫痪。
 
+master 的架构：
 
+etcd 类似于 redis 的key/value 数据库，由 CoreOS 公司使用 Go 语言开发
+
+CoreOS 是 Google 扶持的，制衡 Docker 公司，CoreOS 无法撼动 Docker 在容器领域上的统治地位，但是 CoreOS 在其他领域建树很多。后来 CoreOS 被红帽收购，红帽被 IBM 收购
+
+Scheduler 负责调度管理的节点
+Controller 负责完成指令
+API Server 负责接收指令
+
+control loop：
+API Server 接收指令，直接修改 etcd 配置。控制器不停询问 etcd 保存的配置是不是与当前集群匹配，如果不匹配，调整集群以适应配置。
+
+
+
+Node 架构
+kubelet 用来监听 master 的配置
+Docker 是 k8s 支持的一种容器运行时，k8s 定义了容器运行时接口 cri-o，容器存储接口、容器网络接口.
+Pod 是 k8s 中对容器的封装，也就是容器的外壳。因此 k8s 运行的基本单元是 Pod，而不是容器
+
+Pod 中可以有多个容器，一般是有一个不会用的基础架构容器，其他容器复用基础架构容器的网络和数据卷
+
+Service 客户端直接访问，反代理到各个提供服务的 Pod，可以实现负载均衡
+
+service 的 IP 地址称为 service-ip、cluster-ip
+pod 的 IP 地址称为 pod-ip
+因为 pod 可能销毁、恢复，ip 地址会变，所以 service 反代到 pod 不使用 pod-id 做标识，使用 label
+service 不会当即，因为他实际上就是 iptables 规则
+
+service-ip 特殊时候也会变，所以 k8s 之上必不可少一个 dns 服务器，动态寻址 service
+
+node-ip 节点的 ip

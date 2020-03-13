@@ -43,14 +43,16 @@ const Post = styled.article`
   padding: 5% 8%;
   border-radius: 5px;
   box-shadow: rgba(39,44,49,0.06) 8px 14px 38px, rgba(39,44,49,0.03) 1px 3px 8px;
-  font-size: 16px;
-  line-height: 1.5;
-  color: #696973;
-  font-weight: normal;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.7;
+  color: #314659;
+  letter-spacing: 0;
   background-color: #fff;
-  font-family: Yuanti SC, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+  font-family: Yuanti SC, Lato, "PingFang SC", "Microsoft YaHei", BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 `
+
 
 const PostCatogory = styled.h4`
   margin: .5em 0 0;

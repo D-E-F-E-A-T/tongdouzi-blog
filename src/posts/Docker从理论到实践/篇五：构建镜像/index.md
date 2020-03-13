@@ -8,15 +8,58 @@ tags:
 featureImage: ../docker.jpg
 ---
 
-## Docker 构建镜像
+## 基于容器的构建
 
-### 基于容器 - docker commit
+容器其实就是在镜像之上叠加一个可写层。基于一个容器，可以通过 `docker commit` 命令将可写层提交为镜像中的一个只读层从而构建出一个新的镜像：
 
 ```shell
-docker commit
+docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 ```
 
-### 基于 Dockerfile - docker build
+首先创建一个容器并且在里面启动一个简单的 web 服务：
+
+```shell
+root@vps:~# docker run -it busybox
+/ # mkdir -p /var/www/html
+/ # touch /var/www/html/index.html
+/ # echo "<h3>hello</h3>" > /var/www/html/index.html
+/ # httpd -f -h /var/www/html/
+```
+
+基于这个容器构建一个镜像：
+
+```shell
+root@vps:~# docker ps -a
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+9a6879572c97        busybox             "sh"                14 minutes ago      Up 14 minutes                           focused_kilby
+root@vps:~# docker commit -p 9a6879572c97 myweb:v0.0.1
+sha256:bc4ade92a69630fd1b809f40bec6f63f670ef152cc4226b8c5b85df28096d23c
+root@vps:~# docker image ls
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+myweb               v0.0.1              bc4ade92a696        21 seconds ago      1.22MB
+nginx               1.17.8-alpine       48c8a7c47625        7 weeks ago         21.8MB
+busybox             latest              6d5fcfe5ff17        2 months ago        1.22MB
+```
+
+使用新的镜像创建一个新的容器：
+
+```shell
+root@vps:~# docker run -it myweb:v0.0.1
+/ #
+```
+
+这个容器的 httpd 服务并没有自动启动起来，因为新构建的镜像 myweb:v0.0.1 的默认启动命令继承的还是 busybox:latest 这个镜像的启动命令。`docker commit` 命令可以通过 `-c` 来修改一些指令：
+
+```shell
+root@vps:~# docker commit -p -a "Shawmon Peng <pengxiaomeng@outlook.com>" -c 'CMD ["/bin/httpd", "-f", "-h", "/var/www/html/"]' 9a6879572c97 myweb:v0.0.2
+sha256:01af8ab4e2fb880aa80cb6b01993867d2abc9008cc8318a76564361f89766457
+root@vps:~# docker run -d myweb:v0.0.2
+fcd2530ded6fd5a24f182014aae5129ec381e2547e83f492b24ade53c5d1fc0b
+root@vps:~# curl 172.17.0.3
+<h3>hello</h3>
+```
+
+## 基于 Dockerfile 的构建
 
 ```shell
 docker build
@@ -202,3 +245,17 @@ ONBUILD 指令：一个触发器，用这个 Dockerfile 构建的镜像，被其
 ```dockerfile
 ONBUILD ADD 'https://www.example.com/xxx.tar.gz'
 ```
+
+## 镜像上传
+
+公有仓库 dockerhub dockercn 阿里云(dev.aliyun.com) quay.io
+
+私有仓库 docker-distribution/docker-registry vmware harbor
+
+推送镜像需要保证本地镜像的名字与推送的服务器一致
+docker push mageedu/httpd
+
+## 镜像导入和导出
+
+docker save -o myimages.gz IMAGE1 IMAGE1
+docker load -i myimages.gz
