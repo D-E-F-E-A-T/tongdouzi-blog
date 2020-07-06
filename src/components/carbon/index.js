@@ -3,6 +3,8 @@ import styled from 'styled-components'
 import { UnControlled as CodeMirror } from 'react-codemirror2'
 import 'codemirror/lib/codemirror.css'
 import 'codemirror/theme/monokai.css'
+import 'codemirror/mode/css/css'
+import 'codemirror/mode/htmlmixed/htmlmixed'
 import 'codemirror/mode/xml/xml'
 import 'codemirror/mode/jsx/jsx'
 import 'codemirror/mode/shell/shell'
@@ -55,15 +57,9 @@ const Containner = styled.div`
 export default ({ children, className = '' }) => {
   let mode = className.split('-')[1] || 'plaintext'
   if (mode === 'js' || mode === 'javascript' || mode === 'json') mode = 'jsx'
-  console.warn('mode', mode)
+  if (mode === 'html') mode = 'htmlmixed'
   return (
     <Containner>
-      {/* <WindowControls
-          theme={'none'}
-          code={this.props.children}
-          copyable={this.props.copyable}
-          light={light}
-        /> */}
       <CodeMirror
         className={`CodeMirror__container window-theme__none`}
         // 去除首位换行符
@@ -71,7 +67,7 @@ export default ({ children, className = '' }) => {
         options={{
           lineNumbers: true,
           firstLineNumber: 1,
-          mode: mode,
+          mode: mode === 'html' ? 'htmlmixed' : mode,
           theme: 'monokai',
           scrollBarStyle: null,
           viewportMargin: Infinity,
@@ -84,9 +80,6 @@ export default ({ children, className = '' }) => {
           readOnly: 'nocursor', // false,
           showInvisibles: false,
         }}
-        // onBeforeChange={this.onBeforeChange}
-        // onGutterClick={this.props.onGutterClick}
-        // onSelection={this.onSelection}
       />
       <div className="container-bg">
         <div className="white eliminateOnRender" />

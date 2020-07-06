@@ -6,6 +6,7 @@ categories:
 tags:
   - linux
 featureImage: ../docker.jpg
+publish: true
 ---
 
 ## Docker 前世今生
@@ -89,7 +90,7 @@ Docker 的架构由 Docker Host、Docker Client 和 Docker Registry 三部分组
 
 Docker Host 和 Docker Client 可以是两个不同的主机，通过 tcp/ip socket 进行通信，也可以是同一个主机，通过 unix domain socket 通信。docker deamon 默认只监听 unix domain socket，如果需要开启 TCP/IP 监听，修改 `/etc/systemd/system/multi-user.target.wants/docker.service`:
 
-```shell
+```properties
 [Service]
 Type=notify
 ExecStart=/usr/bin/dockerd -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375
@@ -161,7 +162,7 @@ https://blog.csdn.net/deng624796905/article/details/86493330
 
 使用 `docker search` 命令可以从 docker hub 搜索仓库：
 
-```shell
+```bash
 ➜  ~ docker search busybox
 NAME                      DESCRIPTION                                     STARS               OFFICIAL            AUTOMATED
 busybox                   Busybox base image.                             1777                [OK]
@@ -176,7 +177,7 @@ arm32v7/busybox           Busybox base image.                             8
 
 使用 `docker pull` 命令将仓库注册服务器上的镜像拉取到本地：
 
-```shell
+```bash
 ➜  ~ docker pull busybox:1.31.1
 1.31.1: Pulling from library/busybox
 bdbbaa22dec6: Pull complete
@@ -189,7 +190,7 @@ docker.io/library/busybox:1.31.1
 
 使用 `docker images/docker image ls` 命令可以列举出所有本地已下载的镜像
 
-```shell
+```bash
 ➜  ~ docker images
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
 busybox             1.31.1              6d5fcfe5ff17        4 weeks ago         1.22MB
@@ -198,7 +199,7 @@ nginx               1.17.6-alpine       a624d888d69f        2 months ago        
 
 使用 `docker rmi/docker image rm` 命令可以删除本地的镜像：
 
-```shell
+```bash
 ➜  ~ docker rmi busybox:1.31.1
 Untagged: busybox:1.31.1
 Untagged: busybox@sha256:6915be4043561d64e0ab0f8f098dc2ac48e077fe23f488ac24b665166898115a

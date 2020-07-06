@@ -6,6 +6,7 @@ categories:
 tags:
   - linux
 featureImage: ../docker.jpg
+publish: true
 ---
 
 ## 数据卷

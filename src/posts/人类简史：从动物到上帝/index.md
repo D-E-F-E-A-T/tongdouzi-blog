@@ -6,6 +6,7 @@ categories:
 tags:
   - 人类
 featureImage: ./进化.jpg
+publish: true
 ---
 
 生物学上将所有生物按照以下的[生物分类级别](https://zh.wikipedia.org/wiki/%E5%88%86%E7%B1%BB%E7%BA%A7%E5%88%AB)分类，现在的所有人类都归属于

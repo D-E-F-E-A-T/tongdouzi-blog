@@ -6,6 +6,7 @@ categories:
 tags:
   - linux
 featureImage: ../docker.jpg
+publish: true
 ---
 
 ## 什么是联合挂载技术？
@@ -43,7 +44,7 @@ featureImage: ../docker.jpg
 
 overlay 作为 aufs 主要竞争者，成功在 3.18 版本中整合进 linux 内核，overlay2 在 4.0 版本中整合进 linux 内核。因此最新版本的 Docker 默认使用 overlay2 作为存储驱动器。
 
-```shell
+```bash
 # 查看 Docker 使用的存储驱动器类型
 root@vps:~# docker info | grep 'Storage Driver'
 WARNING: No swap limit support
@@ -58,7 +59,7 @@ WARNING: No swap limit support
 
 首先按照以下方法快速创建演示目录：
 
-```shell
+```bash
 root@vps:~# mkdir -p overlaytest/{U,L1,L2,W,M}
 root@vps:~# cd overlaytest/
 root@vps:~/overlaytest# echo U | tee U/u U/c1
@@ -90,7 +91,7 @@ root@vps:~/overlaytest# tree .
 
 使用 mount 命令使用联合挂载：
 
-```shell
+```bash
 root@vps:~/overlaytest# mount -t overlay overlaytest -o lowerdir=L2:L1,upperdir=U,workdir=W M
 ```
 
@@ -98,7 +99,7 @@ root@vps:~/overlaytest# mount -t overlay overlaytest -o lowerdir=L2:L1,upperdir=
 
 这时候去查看合并目录 M 下的内容：
 
-```shell
+```bash
 root@vps:~/overlaytest# mount -t overlay overlaytest -o lowerdir=L2:L1,upperdir=U,workdir=W M
 root@vps:~/overlaytest# tree M/
 M/
@@ -125,7 +126,7 @@ L2
 
 - 新增操作：
 
-```shell
+```bash
 root@vps:~/overlaytest# echo create > M/x
 root@vps:~/overlaytest# tree .
 .
@@ -215,7 +216,7 @@ c--------- 1 root root 0, 0 Feb 18 01:38 U/l2
 
 - 修改操作：
 
-```shell
+```bash
 root@vps:~/overlaytest# echo update >> M/u
 root@vps:~/overlaytest# tree .
 .
@@ -281,7 +282,7 @@ update
 
 首先下载一个镜像到本地，并且用这个镜像创建一个流程：
 
-```shell
+```bash
 root@vps:~# docker pull nginx:1.17.8-alpine
 1.17.8-alpine: Pulling from library/nginx
 4167d3e14976: Pull complete
@@ -301,7 +302,7 @@ CONTAINER ID        IMAGE                 COMMAND                  CREATED      
 
 查看挂载信息，其中一种挂载类型为 overlay 就是用作新创建的容器用到的 rootfs：
 
-```shell
+```bash
 root@vps:~# mount | grep overlay
 overlay on /var/lib/docker/overlay2/952331a46f40a11a9d36674d28cfaca2af7d4011318d3371bf090931af4e04e8/merged type overlay (rw,relatime,lowerdir=/var/lib/docker/overlay2/l/ODKPAETYNOBL32D2WWHN3LCDCV:/var/lib/docker/overlay2/l/7SUFXLAVVCLGPEMXOD2HO2LIPE:/var/lib/docker/overlay2/l/5COFXQJPHOFSTSENU2FRW4MNK3,upperdir=/var/lib/docker/overlay2/952331a46f40a11a9d36674d28cfaca2af7d4011318d3371bf090931af4e04e8/diff,workdir=/var/lib/docker/overlay2/952331a46f40a11a9d36674d28cfaca2af7d4011318d3371bf090931af4e04e8/work)
 ```
@@ -321,7 +322,7 @@ workdir=
 
 `/var/lib/docker/overlay2` 这个目录就是 overlay 联合挂载用到的目录在本地存放的位置。这个目录的结构如下：
 
-```shell
+```bash
 root@vps:~# tree -L 2 /var/lib/docker/overlay2/
 /var/lib/docker/overlay2/
 |-- 48fa6642e0675cd285824ea30a09a51a77100773757e1e39651988fe656d15d6
@@ -372,7 +373,7 @@ root@vps:~# tree -L 2 /var/lib/docker/overlay2/
 
 注意到这里有个 `chainId` 的概念，`chainId` 的计算规是父层的 `chaindId` 和本层的 `layerId` 一起做 sha256sum 运算。如果没有父层，则直接取本层的 `layerId` 作为 `chainId`。`layerId` 是镜像中的层固有的 ID，记录在镜像的元数据里：
 
-```shell
+```bash
 root@vps:~# docker image inspect -f {{.RootFS.Layers}} nginx:1.17.8-alpine
 [sha256:531743b7098cb2aaf615641007a129173f63ed86ca32fe7b5a246a1c47286028 sha256:1d98ebade1db75cfe4c8e65592ea579e929a6d105998d214d7d6620dad9578e2]
 root@vps:~# echo -n "sha256:531743b7098cb2aaf615641007a129173f63ed86ca32fe7b5a246a1c47286028 sha256:1d98ebade1db75cfe4c8e65592ea579e929a6d105998d214d7d6620dad9578e2" | sha256sum -
@@ -388,7 +389,7 @@ root@vps:~# echo -n "sha256:531743b7098cb2aaf615641007a129173f63ed86ca32fe7b5a24
 
 镜像的构建后续会再展开说，先看从仓库下载。使用 `docker pull` 命令将仓库注册服务器上的镜像拉取到本地：
 
-```shell
+```bash
 ➜  ~ docker pull busybox:1.31.1
 1.31.1: Pulling from library/busybox
 bdbbaa22dec6: Pull complete
@@ -403,7 +404,7 @@ docker.io/library/busybox:1.31.1
 
 创建容器使用 `docker create` 命令，启动容器使用 `docker start` 命令，在实际使用中通常使用 `docker run` 命令一步到位创建并且启动容器。`docker run` 命令比较复杂，常用的选项列举在下：
 
-```shell
+```bash
 Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 Options:
   --name string                        Assign a name to the container
@@ -416,7 +417,7 @@ Options:
 
 每个容器都拥有唯一ID，这个 ID 由 docker daemon 自动生成，是一个 64 位长度，由数字和字母 a~f 组成。同时 Docker 也允许截取完整 ID 的前 12 个字符作为容器的截断 ID。
 
-```shell
+```bash
 ➜  ~ docker run busybox
 ➜  ~ docker ps -a --no-trunc
 # 显示完整ID
@@ -430,7 +431,7 @@ CONTAINER ID        IMAGE               COMMAND             CREATED             
 
 无论是完整 ID 还是截断 ID，对于人类来说无论识别还是记忆都不是很友好。因此 Docker 还允许为每个容器指定便于识记的名字。指定名字使用 `--name` 选项，如果没有指定，Docker 会随机生成一个：
 
-```shell
+```bash
 ➜  ~ docker run --name b1 busybox
 ➜  ~ docker ps -a
 CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS                          PORTS               NAMES
@@ -440,7 +441,7 @@ CONTAINER ID        IMAGE               COMMAND             CREATED             
 
 以后对某个容器进行操作，可以使用这个容器的完整ID、截断ID、名字中的任何一个：
 
-```shell
+```bash
 ➜  ~ docker rm b1
 b1
 ➜  ~ docker ps -aq
@@ -456,7 +457,7 @@ CONTAINER ID        IMAGE               COMMAND             CREATED             
 
 创建容器需要用到一个**入口命令（ENTRYPOINT CMD）**来创建容器的 1 号进程，如果没有指定入口命令，就自动读取配置文件中指定的入口命令。
 
-```shell
+```bash
 ➜  ~ docker run --name b1 busybox sh
 ➜  ~ docker ps -a | grep b1
 85735bb9c7ac        busybox             "sh"                5 seconds ago       Exited (0) 4 seconds ago                       b1
@@ -469,7 +470,7 @@ CONTAINER ID        IMAGE               COMMAND             CREATED             
 
 <!-- 指定 -t 是为了避免标准输入来自一个管道：$ echo test | docker run -i busybox cat -->
 
-```shell
+```bash
 ➜  ~ docker run --name b2 -it busybox sh
 / # %
 # 进入到 sh 交互界面
@@ -480,13 +481,13 @@ ca807ebbb65e        busybox             "sh"                10 seconds ago      
 
 需要注意的是这个 1 号进程不能运行在后台，例如：
 
-```shell
+```bash
 $ docker run -p 80:80 my_image service nginx start
 ```
 
 这个操作成功启动了容器里面的 nginx 服务，但是 1 号进程 - `service nginx start` 返回了，容器也就停止了。虽然容器里面的 nginx 服务启动了，但是使用不了。正确的做法是使用下面的命令：
 
-```shell
+```bash
 $ docker run -p 80:80 my_image nginx -g 'daemon off;'
 ```
 
@@ -496,7 +497,7 @@ $ docker run -p 80:80 my_image nginx -g 'daemon off;'
 
 `docker run` 默认自动连接上启动的容器：
 
-```shell
+```bash
 ➜  ~ docker run --name b3 -it busybox ping www.baidu.com
 PING www.baidu.com (14.215.177.38): 56 data bytes
 64 bytes from 14.215.177.38: seq=0 ttl=37 time=29.920 ms
@@ -510,7 +511,7 @@ read escape sequence
 
 `docker run` 命令指定了 `-d` 选项，则创建完这个容器不会自动连接上：
 
-```shell
+```bash
 ➜  ~ docker run --name b4 -it -d busybox ping www.baidu.com
 2482f220a5445786d03910a3cbe647c6b4fa658177a87bfdc9a924789836b39f
 ➜  ~ docker ps -a | grep b4
@@ -520,7 +521,7 @@ read escape sequence
 
 没有连接上的运行中容器，可以使用 `docker attach` 命令连接上：
 
-```shell
+```bash
 ➜  ~ docker ps -a | grep b4
 2482f220a544        busybox             "ping www.baidu.com"   13 seconds ago      Up 12 seconds                                  b4
 ➜  ~ docker attach b4
@@ -532,7 +533,7 @@ read escape sequence
 
 每当连接上一个容器时，Docker 划分一个 1MB 的缓存区，当缓存区被填满，进程输出显示的速度会受到影响。因此如果只是需要查看进程的输出，建议使用 `docker logs` 访问而不是通过 `docker attach` 连接容器。
 
-```shell
+```bash
 ➜  ~ docker logs b4
 PING www.baidu.com (14.215.177.38): 56 data bytes
 64 bytes from 14.215.177.38: seq=0 ttl=37 time=27.592 ms
@@ -551,7 +552,7 @@ PING www.baidu.com (14.215.177.38): 56 data bytes
 
 `docker exec` 命令用于在一个运行中的容器中执行一个命令：
 
-```shell
+```bash
 ➜  ~ docker run -it -d --name b1 busybox sh
 461c969e510b6146a5f330e5e61ae06400da9328f31b40d269f62c46a9d61b02
 ➜  ~ docker ps -a
@@ -575,6 +576,6 @@ PID   USER     TIME  COMMAND
 
 注意到，使用 `docker exec` 在 b1 容器中执行 `ping www.baidu.com` 命令时，Docker 新启动一个会话去执行这个命令，使用 `ctrl-c` 可以终止退出命令，但是 `ping www.baidu.com` 这个进程并没有停止。这是由于执行命令没有使用 `-it` 选项，建议每次执行命令都带上 `-it`:
 
-```shell
+```bash
 $ docker exec -it b1 ping www.baidu.com
 ```

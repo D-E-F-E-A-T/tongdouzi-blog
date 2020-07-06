@@ -18,10 +18,32 @@ module.exports = {
     `gatsby-transformer-sharp`,
     `gatsby-plugin-sharp`,
     {
+      resolve: `gatsby-plugin-valine`,
+      options: {
+        appId: 'oGAoMTiX74JnL2KRBE8SkMfX-gzGzoHsz',
+        appKey: 'a91VD3ESsKrbsz4PUwWldgGz',
+        notify:false,
+        verify:false,
+        avatar:'mp',
+        placeholder: '天空不曾留下翅膀的痕迹，但我已经飞过。。。',
+      },
+    },
+    {
       resolve: `gatsby-plugin-mdx`,
       options: {
         extensions: [`.mdx`, `.md`],
         gatsbyRemarkPlugins: [
+          {
+            resolve: `gatsby-remark-highlight-code`,
+            options: {
+              // https://www.gatsbyjs.org/packages/gatsby-remark-highlight-code/?=code
+              // https://prismjs.com/
+              terminal: 'carbon',
+              editable: false,
+              lineNumbers: false,
+              theme: 'monokai'
+            }
+          },
           {
             resolve: `gatsby-remark-images`,
             options: {

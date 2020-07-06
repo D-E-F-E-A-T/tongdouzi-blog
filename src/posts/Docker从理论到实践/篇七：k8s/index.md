@@ -8,6 +8,157 @@ tags:
 featureImage: ../docker.jpg
 ---
 
+## docker compose
+
+主机 -> 容器
+
+主机 -> 项目 -> 服务 -> 容器
+
+特性：
+
+1. 使用 `PROJECT_NAME` 隔离环境，不同 `PROJECT_NAME` 下可以存在同名服务
+2. 保留并维持服务用到的所有数据卷
+3. 只在容器的配置发生改变的时候才会重新创建容器
+4. 每个 PROJECT 有自己的变量，根据这些变量自定义环境变量或者 users。Compose file 可以通过继承另一个 Compose file
+
+```shell
+root@vps:~/composetest# docker-compose up
+Creating network "composetest_default" with the default driver
+Building web
+Step 1/9 : FROM python:3.7-alpine
+3.7-alpine: Pulling from library/python
+c9b1b535fdd9: Pull complete
+2cc5ad85d9ab: Pull complete
+29edaae8dc30: Pull complete
+ad2b1dc8253c: Pull complete
+f5cf370601a5: Pull complete
+Digest: sha256:04c0e1365bf119f30e965ae7bd3ac6dc37ce59a8c1277e1b256de002cd364b78
+Status: Downloaded newer image for python:3.7-alpine
+ ---> 13f1d829523b
+Step 2/9 : WORKDIR /code
+ ---> Running in 292a99cf00f4
+Removing intermediate container 292a99cf00f4
+ ---> 1f280da3d51c
+Step 3/9 : ENV FLASK_APP app.py
+ ---> Running in 95da47fdf8e9
+Removing intermediate container 95da47fdf8e9
+ ---> 7e2deb63f5cf
+Step 4/9 : ENV FLASK_RUN_HOST 0.0.0.0
+ ---> Running in f6d425f1f549
+Removing intermediate container f6d425f1f549
+ ---> 5a8623a722ea
+Step 5/9 : RUN apk add --no-cache gcc musl-dev linux-headers
+ ---> Running in 28b73e540f26
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/community/x86_64/APKINDEX.tar.gz
+(1/12) Installing libgcc (9.2.0-r3)
+(2/12) Installing libstdc++ (9.2.0-r3)
+(3/12) Installing binutils (2.33.1-r0)
+(4/12) Installing gmp (6.1.2-r1)
+(5/12) Installing isl (0.18-r0)
+(6/12) Installing libgomp (9.2.0-r3)
+(7/12) Installing libatomic (9.2.0-r3)
+(8/12) Installing mpfr4 (4.0.2-r1)
+(9/12) Installing mpc1 (1.1.0-r1)
+(10/12) Installing gcc (9.2.0-r3)
+(11/12) Installing linux-headers (4.19.36-r0)
+(12/12) Installing musl-dev (1.1.24-r1)
+Executing busybox-1.31.1-r9.trigger
+OK: 124 MiB in 46 packages
+Removing intermediate container 28b73e540f26
+ ---> f6aeefb8aaf6
+Step 6/9 : COPY requirements.txt requirements.txt
+ ---> c9507c609889
+Step 7/9 : RUN pip install -r requirements.txt
+ ---> Running in 044d6d03ef69
+Collecting flask
+  Downloading Flask-1.1.1-py2.py3-none-any.whl (94 kB)
+Collecting redis
+  Downloading redis-3.4.1-py2.py3-none-any.whl (71 kB)
+Collecting Werkzeug>=0.15
+  Downloading Werkzeug-1.0.0-py2.py3-none-any.whl (298 kB)
+Collecting itsdangerous>=0.24
+  Downloading itsdangerous-1.1.0-py2.py3-none-any.whl (16 kB)
+Collecting click>=5.1
+  Downloading click-7.1.1-py2.py3-none-any.whl (82 kB)
+Collecting Jinja2>=2.10.1
+  Downloading Jinja2-2.11.1-py2.py3-none-any.whl (126 kB)
+Collecting MarkupSafe>=0.23
+  Downloading MarkupSafe-1.1.1.tar.gz (19 kB)
+Building wheels for collected packages: MarkupSafe
+  Building wheel for MarkupSafe (setup.py): started
+  Building wheel for MarkupSafe (setup.py): finished with status 'done'
+  Created wheel for MarkupSafe: filename=MarkupSafe-1.1.1-cp37-cp37m-linux_x86_64.whl size=32613 sha256=2c3e6fb4f226275c782e53fd6251592a8707402bed86ef8d6b44f1a72c11a5f5
+  Stored in directory: /root/.cache/pip/wheels/b9/d9/ae/63bf9056b0a22b13ade9f6b9e08187c1bb71c47ef21a8c9924
+Successfully built MarkupSafe
+Installing collected packages: Werkzeug, itsdangerous, click, MarkupSafe, Jinja2, flask, redis
+Successfully installed Jinja2-2.11.1 MarkupSafe-1.1.1 Werkzeug-1.0.0 click-7.1.1 flask-1.1.1 itsdangerous-1.1.0 redis-3.4.1
+Removing intermediate container 044d6d03ef69
+ ---> cf194718fcaa
+Step 8/9 : COPY . .
+ ---> cd1bdd253c0c
+Step 9/9 : CMD ["flask", "run"]
+ ---> Running in 56e7cdf95afd
+Removing intermediate container 56e7cdf95afd
+ ---> af47351aef32
+Successfully built af47351aef32
+Successfully tagged composetest_web:latest
+WARNING: Image for service web was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
+Pulling redis (redis:alpine)...
+alpine: Pulling from library/redis
+c9b1b535fdd9: Already exists
+8dd5e7a0ba4a: Pull complete
+e20c1cdf5aef: Pull complete
+25131c35a099: Pull complete
+bd7c9740b22d: Pull complete
+d4f86850c303: Pull complete
+Digest: sha256:49a9889fc47003cc8b8d83bb008dacd3164f6f594caed5e7f1c6829f52c221a8
+Status: Downloaded newer image for redis:alpine
+Creating composetest_redis_1 ... done
+Creating composetest_web_1   ... done
+Attaching to composetest_web_1, composetest_redis_1
+redis_1  | 1:C 18 Mar 2020 09:02:34.511 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+redis_1  | 1:C 18 Mar 2020 09:02:34.511 # Redis version=5.0.8, bits=64, commit=00000000, modified=0, pid=1, just started
+redis_1  | 1:C 18 Mar 2020 09:02:34.511 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+redis_1  | 1:M 18 Mar 2020 09:02:34.514 * Running mode=standalone, port=6379.
+redis_1  | 1:M 18 Mar 2020 09:02:34.514 # WARNING: The TCP backlog setting of 511 cannot be enforced because /proc/sys/net/core/somaxconn is set to the lower value of 128.
+redis_1  | 1:M 18 Mar 2020 09:02:34.514 # Server initialized
+redis_1  | 1:M 18 Mar 2020 09:02:34.514 # WARNING overcommit_memory is set to 0! Background save may fail under low memory condition. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+redis_1  | 1:M 18 Mar 2020 09:02:34.514 * Ready to accept connections
+web_1    |  * Serving Flask app "app.py"
+web_1    |  * Environment: production
+web_1    |    WARNING: This is a development server. Do not use it in a production deployment.
+web_1    |    Use a production WSGI server instead.
+web_1    |  * Debug mode: off
+web_1    |  * Running on http://0.0.0.0:5000/ (Press CTRL+C to quit)
+^CGracefully stopping... (press Ctrl+C again to force)
+Stopping composetest_redis_1 ... done
+Stopping composetest_web_1   ...
+Killing composetest_web_1    ... done
+```
+
+```
+root@vps:~# docker images
+REPOSITORY                      TAG                 IMAGE ID            CREATED             SIZE
+composetest_web                 latest              af47351aef32        9 minutes ago       220MB
+redis                           alpine              d8415a415147        4 days ago          30.4MB
+myweb                           v0.0.2              01af8ab4e2fb        5 days ago          1.22MB
+myweb                           v0.0.1              bc4ade92a696        5 days ago          1.22MB
+python                          3.7-alpine          13f1d829523b        7 days ago          96.4MB
+nginx                           1.17.8-alpine       48c8a7c47625        7 weeks ago         21.8MB
+shadowsocks/shadowsocks-libev   latest              be0b19faac99        2 months ago        17.6MB
+busybox                         latest              6d5fcfe5ff17        2 months ago        1.22MB
+root@vps:~# docker ps -a
+CONTAINER ID        IMAGE                           COMMAND                  CREATED             STATUS                    PORTS                                              NAMES
+f0e5189be940        redis:alpine                    "docker-entrypoint.s…"   9 minutes ago       Up 2 minutes              6379/tcp                                           composetest_redis_1
+4533769fed34        composetest_web                 "flask run"              9 minutes ago       Up 2 minutes              0.0.0.0:5000->5000/tcp                             composetest_web_1
+091a84a43428        shadowsocks/shadowsocks-libev   "/bin/sh -c 'exec ss…"   3 days ago          Up 3 days                 0.0.0.0:13142->8388/tcp, 0.0.0.0:13142->8388/udp   ss
+fcd2530ded6f        myweb:v0.0.2                    "/bin/httpd -f -h /v…"   5 days ago          Up 5 days                                                                    interesting_ride
+a72f214da8c4        myweb:v0.0.1                    "sh"                     5 days ago          Exited (130) 5 days ago                                                      unruffled_dubinsky
+9a6879572c97        busybox                         "sh"                     5 days ago          Up 5 days                                                                    focused_kilby
+root@vps:~#
+```
+
 ## k8s 介绍
 
 C/C++ 针对系统 API 进行开发

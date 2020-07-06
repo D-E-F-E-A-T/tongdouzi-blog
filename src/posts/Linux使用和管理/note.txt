@@ -1,0 +1,7 @@
+curl 和 wget 的区别和使用
+
+https://www.cnblogs.com/lsdb/p/7171779.html
+
+GFW
+https://program-think.blogspot.com/2014/01/dns.html
+https://program-think.blogspot.com/2009/05/how-to-break-through-gfw.html

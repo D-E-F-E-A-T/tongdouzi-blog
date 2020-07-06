@@ -22,7 +22,7 @@ export default function ({ data: { allMdx: { edges } } }) {
     <Blog>
       <Posts>
         {
-          edges.map(edge => (
+          edges.filter((edge) => edge.node.frontmatter.publish).map(edge => (
             <Thumb key={edge.node.id} {...edge.node} />
           ))
         }
@@ -33,7 +33,7 @@ export default function ({ data: { allMdx: { edges } } }) {
 
 export const pageQuery = graphql`
   query {
-    allMdx {
+    allMdx(sort: { fields: [frontmatter___date], order: [DESC] }) {
       edges {
         node {
           id
@@ -41,6 +41,7 @@ export const pageQuery = graphql`
             title
             date(formatString: "YYYY-MM-DD")
             categories
+            publish
             featureImage  {
               childImageSharp {
                 fluid(maxWidth: 400) {

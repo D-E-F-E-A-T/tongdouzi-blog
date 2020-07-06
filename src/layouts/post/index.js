@@ -1,13 +1,16 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import styled from 'styled-components'
 import { MDXRenderer } from 'gatsby-plugin-mdx'
 import { MDXProvider } from '@mdx-js/react'
 import Blog from '@/layouts/blog'
 import 'katex/dist/katex.min.css'
-import Carbon from '@/components/carbon'
-import AV from 'leancloud-storage'
-import Valine from 'valine'
-window.AV = AV
+import Valine from 'gatsby-plugin-valine'
+import { defineCustomElements as deckDeckGoHighlightElement } from '@deckdeckgo/highlight-code/dist/loader';
+deckDeckGoHighlightElement();
+
+// import AV from 'leancloud-storage'
+// import Valine from 'valine'
+// window.AV = AV
 
 const DateIcon = props => (
   <svg
@@ -39,20 +42,18 @@ const TagIcon= props => (
 
 const Post = styled.article`
   position: relative;
-  /* margin: 10px 30px; */
-  padding: 5% 8%;
+  padding: 5% 8% 1%;
   border-radius: 5px;
   box-shadow: rgba(39,44,49,0.06) 8px 14px 38px, rgba(39,44,49,0.03) 1px 3px 8px;
   font-size: 15px;
   font-weight: 400;
   line-height: 1.7;
-  color: #314659;
+  color: #222;
   letter-spacing: 0;
   background-color: #fff;
   font-family: Yuanti SC, Lato, "PingFang SC", "Microsoft YaHei", BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 `
-
 
 const PostCatogory = styled.h4`
   margin: .5em 0 0;
@@ -151,7 +152,7 @@ const PostContent = styled.div`
       margin: .2em 0;
     }
   }
-  ul {
+  ul, ol {
     padding: 0 1.5em;
   }
   .gatsby-resp-image-wrapper {
@@ -166,6 +167,7 @@ const PostContent = styled.div`
   img {
     max-width: 100%;
     border-radius: 5px;
+    background: white;
   }
   a {
     color: #1f2b86;
@@ -198,17 +200,20 @@ const PostContent = styled.div`
     font-family: Menlo, Monaco, 'Courier New', monospace !important;
   }
 `
+const Comments = styled(Valine)`
+  margin: 80px 0 0;
+`
 
 const Wrapper = function ({ frontmatter, children }) {
   return (
     <Blog>
       <Post>
-        <PostCatogory>{frontmatter.categories.join(' & ')}</PostCatogory>
+        { frontmatter.categories && frontmatter.categories.length && <PostCatogory>{frontmatter.categories.join(' & ')}</PostCatogory> }
         <PostTitle>{frontmatter.title}</PostTitle>
         <PostMeta>
           <PostTags>
             <TagIcon style={{width: 20, height: 20, color: '#1f2b86'}} />
-            <TagText>{frontmatter.tags.join('、')}</TagText>
+            { frontmatter.tags && frontmatter.tags.length && <TagText>{frontmatter.tags.join('、')}</TagText> }
           </PostTags>
           <PostPubDate>
             <DateIcon style={{width: 20, height: 20, color: '#1f2b86'}} />
@@ -219,28 +224,16 @@ const Wrapper = function ({ frontmatter, children }) {
         <PostContent>
           {children}
         </PostContent>
-        <div id="comment"></div>
+        <Comments />
       </Post>
     </Blog>
   )
 }
 
 export default ({ body, ...postProps }) => {
-  useEffect(() => {
-    new Valine({
-      el: '#comment' ,
-      appId: 'oGAoMTiX74JnL2KRBE8SkMfX-gzGzoHsz',
-      appKey: 'a91VD3ESsKrbsz4PUwWldgGz',
-      notify:false,
-      verify:false,
-      avatar:'mp',
-      placeholder: '天空不曾留下翅膀的痕迹，但我已经飞过。。。',
-    })
-  }, [])
   return (
     <MDXProvider components={{
-      'wrapper': (mdxProps) => <Wrapper {...postProps} {...mdxProps} />,
-      'code': Carbon,
+      'wrapper': (mdxProps) => <Wrapper {...postProps} {...mdxProps} />
     }}>
       <MDXRenderer>{ body }</MDXRenderer>
     </MDXProvider>

@@ -64,7 +64,7 @@ const Wrapper = function ({ excerpt, frontmatter, fields }) {
       }
       <Text>
         {
-          frontmatter.categories && frontmatter.categories.length && <Category>{frontmatter.categories.join(` & `)}</Category>
+          frontmatter.categories && frontmatter.categories && <Category>{frontmatter.categories.join(` & `)}</Category>
         }
         <Title>{frontmatter.title}</Title>
         <Excerpt>{excerpt}</Excerpt>

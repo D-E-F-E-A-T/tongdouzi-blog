@@ -1,0 +1,707 @@
+---
+title: Rect 源码分析篇四：Reconciler
+date: 2020-04-03
+categories:
+  - 技术
+tags:
+  - react
+featureImage: ../react源码.png
+---
+
+如果说 Vitual DOM 是的杀招，Reconciler 就是 React 的内功根基。Reconciler 的功能是将用户用来描述 UI 的 Vitual DOM 同步到真实的 DOM、Native 等环境，有了 Reconciler，React 声明式的 API 才能够实现。
+
+## diff 和 merge
+
+diff？
+merge？
+
+所以需要有个对象 hold 上次渲染结果、这个对象就是。
+
+## 解读
+
+`react-dom` 的 API 是在 `packages/react-dom/src/client/ReactDOM.js` 这个文件中导出的，选择几个重要的 API 去除开发环境特有代码简化后：
+
+```js
+// packages/react-dom/src/client/ReactDOM.js
+const ReactDOM: Object = {
+  render(
+    element: React$Element<any>,
+    container: DOMContainer,
+    callback: ?Function,
+  ) {
+    invariant(
+      isValidContainer(container),
+      'Target container is not a DOM element.',
+    );
+    return legacyRenderSubtreeIntoContainer(
+      null,
+      element,
+      container,
+      false,
+      callback,
+    );
+  },
+  hydrate(element: React$Node, container: DOMContainer, callback: ?Function) {
+    invariant(
+      isValidContainer(container),
+      'Target container is not a DOM element.',
+    );
+    return legacyRenderSubtreeIntoContainer(
+      null,
+      element,
+      container,
+      true,
+      callback,
+    );
+  },
+  unmountComponentAtNode(container: DOMContainer) {
+    invariant(
+      isValidContainer(container),
+      'unmountComponentAtNode(...): Target container is not a DOM element.',
+    );
+
+    if (container._reactRootContainer) {
+      // Unmount should not be batched.
+      unbatchedUpdates(() => {
+        legacyRenderSubtreeIntoContainer(null, null, container, false, () => {
+          container._reactRootContainer = null;
+        });
+      });
+      return true;
+    } else {
+      return false;
+    }
+  },
+};
+```
+
+- `ReactDOM.render()/ReactDOM.hydrate()` 用来渲染一个 React Element 到指定 container DOM 节点，包括初次渲染 - 挂载和后续渲染 - 更新。
+- `ReactDOM.unmountComponentAtNode()` 用来卸载指定 container DOM 节点上已经渲染的 React Element。
+
+`ReactDOM.render()` 和 `ReactDOM.hydrate()` 的区别是初次渲染时要不要“水合” container DOM 节点下已经存在的 DOM 节点。所谓“水合”，就是说重复利用这些 DOM 节点。`ReactDOM.render()` 初次渲染时发现 container DOM 节点下已经存在一些 DOM，会直接删除这些 DOM 节点。而 `ReactDOM.hydrate()` 会最大限度重用这些节点，在使用了服务端渲染技术的场景下会更高效。
+
+`ReactDOM.render()`、`ReactDOM.hydrate()`、`ReactDOM.unmountComponentAtNode()` 这三个关键 API 都会去调用 `legacyRenderSubtreeIntoContainer()`，可以说 `legacyRenderSubtreeIntoContainer` 函数是 `react-dom` 这个包的总入口。
+
+![legacyRenderSubtreeIntoContainer](fiber/React.render.png)
+
+```js
+// packages/react-dom/src/client/ReactDOM.js
+function legacyRenderSubtreeIntoContainer(
+  parentComponent: ?React$Component<any, any>,
+  children: ReactNodeList,
+  container: DOMContainer,
+  forceHydrate: boolean,
+  callback: ?Function,
+) {
+  let root: Root = (container._reactRootContainer: any);
+  if (!root) {
+    // Initial mount
+    root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
+      container,
+      forceHydrate,
+    );
+    if (typeof callback === 'function') {
+      const originalCallback = callback;
+      callback = function() {
+        const instance = getPublicRootInstance(root._internalRoot);
+        originalCallback.call(instance);
+      };
+    }
+    // Initial mount should not be batched.
+    unbatchedUpdates(() => {
+      if (parentComponent != null) {
+        root.legacy_renderSubtreeIntoContainer(
+          parentComponent,
+          children,
+          callback,
+        );
+      } else {
+        root.render(children, callback);
+      }
+    });
+  } else {
+    if (typeof callback === 'function') {
+      const originalCallback = callback;
+      callback = function() {
+        const instance = getPublicRootInstance(root._internalRoot);
+        originalCallback.call(instance);
+      };
+    }
+    // Update
+    if (parentComponent != null) {
+      root.legacy_renderSubtreeIntoContainer(
+        parentComponent,
+        children,
+        callback,
+      );
+    } else {
+      root.render(children, callback);
+    }
+  }
+  return getPublicRootInstance(root._internalRoot);
+}
+```
+
+`legacyRenderSubtreeIntoContainer()` 主要做了三件事情：
+
+- 创建 ReactRoot 对象：`legacyCreateRootFromDOMContainer(container, forceHydrate);`
+- 调用 reactRoot.render() 方法：`root.render(children, callback);`
+- 返回 publicRootInstance：`return getPublicRootInstance(root._internalRoot);`
+
+我们先关注**第一件事**：ReactRoot 对象的创建过程，调用链拉的很长，先过以下主要代码
+
+```js
+// packages/react-dom/src/client/ReactDOM.js
+function legacyCreateRootFromDOMContainer(
+  container: DOMContainer,
+  forceHydrate: boolean,
+): Root {
+  const shouldHydrate =
+    forceHydrate || shouldHydrateDueToLegacyHeuristic(container);
+  // First clear any existing content.
+  if (!shouldHydrate) {
+    let warned = false;
+    let rootSibling;
+    while ((rootSibling = container.lastChild)) {
+      container.removeChild(rootSibling);
+    }
+  }
+  // Legacy roots are not async by default.
+  const isConcurrent = false;
+  return new ReactRoot(container, isConcurrent, shouldHydrate);
+}
+```
+
+```js
+// packages/react-dom/src/client/ReactDOM.js
+function ReactRoot(
+  container: DOMContainer,
+  isConcurrent: boolean,
+  hydrate: boolean,
+) {
+  const root = createContainer(container, isConcurrent, hydrate);
+  this._internalRoot = root;
+}
+```
+
+```js
+// packages/react-reconciler/src/ReactFiberReconciler.js
+export function createContainer(
+  containerInfo: Container,
+  isConcurrent: boolean,
+  hydrate: boolean,
+): OpaqueRoot {
+  return createFiberRoot(containerInfo, isConcurrent, hydrate);
+}
+```
+
+```js
+// packages/react-reconciler/src/ReactFiberRoot.js
+export function createFiberRoot(
+  containerInfo: any,
+  isConcurrent: boolean,
+  hydrate: boolean,
+): FiberRoot {
+  // Cyclic construction. This cheats the type system right now because
+  // stateNode is any.
+  const uninitializedFiber = createHostRootFiber(isConcurrent);
+
+  let root;
+  if (enableSchedulerTracing) {
+    root = ({
+      current: uninitializedFiber,
+      containerInfo: containerInfo,
+      pendingChildren: null,
+
+      earliestPendingTime: NoWork,
+      latestPendingTime: NoWork,
+      earliestSuspendedTime: NoWork,
+      latestSuspendedTime: NoWork,
+      latestPingedTime: NoWork,
+
+      pingCache: null,
+
+      didError: false,
+
+      pendingCommitExpirationTime: NoWork,
+      finishedWork: null,
+      timeoutHandle: noTimeout,
+      context: null,
+      pendingContext: null,
+      hydrate,
+      nextExpirationTimeToWorkOn: NoWork,
+      expirationTime: NoWork,
+      firstBatch: null,
+      nextScheduledRoot: null,
+
+      interactionThreadID: unstable_getThreadID(),
+      memoizedInteractions: new Set(),
+      pendingInteractionMap: new Map(),
+    }: FiberRoot);
+  } else {
+    root = ({
+      current: uninitializedFiber,
+      containerInfo: containerInfo,
+      pendingChildren: null,
+
+      pingCache: null,
+
+      earliestPendingTime: NoWork,
+      latestPendingTime: NoWork,
+      earliestSuspendedTime: NoWork,
+      latestSuspendedTime: NoWork,
+      latestPingedTime: NoWork,
+
+      didError: false,
+
+      pendingCommitExpirationTime: NoWork,
+      finishedWork: null,
+      timeoutHandle: noTimeout,
+      context: null,
+      pendingContext: null,
+      hydrate,
+      nextExpirationTimeToWorkOn: NoWork,
+      expirationTime: NoWork,
+      firstBatch: null,
+      nextScheduledRoot: null,
+    }: BaseFiberRootProperties);
+  }
+
+  uninitializedFiber.stateNode = root;
+
+  return ((root: any): FiberRoot);
+}
+```
+
+```js
+// packages/react-reconciler/src/ReactFiber.js
+export function createHostRootFiber(isConcurrent: boolean): Fiber {
+  let mode = isConcurrent ? ConcurrentMode | StrictMode : NoContext;
+
+  if (enableProfilerTimer && isDevToolsPresent) {
+    mode |= ProfileMode;
+  }
+
+  return createFiber(HostRoot, null, null, mode);
+}
+const createFiber = function(
+  tag: WorkTag,
+  pendingProps: mixed,
+  key: null | string,
+  mode: TypeOfMode,
+): Fiber {
+  return new FiberNode(tag, pendingProps, key, mode);
+};
+function FiberNode(
+  tag: WorkTag,
+  pendingProps: mixed,
+  key: null | string,
+  mode: TypeOfMode,
+) {
+  // Instance
+  this.tag = tag;
+  this.key = key;
+  this.elementType = null;
+  this.type = null;
+  this.stateNode = null;
+
+  // Fiber
+  this.return = null;
+  this.child = null;
+  this.sibling = null;
+  this.index = 0;
+
+  this.ref = null;
+
+  this.pendingProps = pendingProps;
+  this.memoizedProps = null;
+  this.updateQueue = null;
+  this.memoizedState = null;
+  this.contextDependencies = null;
+
+  this.mode = mode;
+
+  // Effects
+  this.effectTag = NoEffect;
+  this.nextEffect = null;
+
+  this.firstEffect = null;
+  this.lastEffect = null;
+
+  this.expirationTime = NoWork;
+  this.childExpirationTime = NoWork;
+
+  this.alternate = null;
+
+  if (enableProfilerTimer) {
+    this.actualDuration = Number.NaN;
+    this.actualStartTime = Number.NaN;
+    this.selfBaseDuration = Number.NaN;
+    this.treeBaseDuration = Number.NaN;
+
+    this.actualDuration = 0;
+    this.actualStartTime = -1;
+    this.selfBaseDuration = 0;
+    this.treeBaseDuration = 0;
+  }
+}
+```
+
+调用链可以使用下面的图简单概括：
+
+![createFiberRoot](fiber/createFiberRoot.png)
+
+到目前位置，形成了的数据结构大概长下面这个样子：
+
+![FiberRoot](fiber/FiberRoot.png)
+
+再来关注**第二件事**：调用 reactRoot.render() 方法
+
+```js
+// packages/react-dom/src/client/ReactDOM.js
+ReactRoot.prototype.render = function(
+  children: ReactNodeList,
+  callback: ?() => mixed,
+): Work {
+  const root = this._internalRoot;
+  const work = new ReactWork();
+  callback = callback === undefined ? null : callback;
+  if (callback !== null) {
+    work.then(callback);
+  }
+  updateContainer(children, root, null, work._onCommit);
+  return work;
+};
+```
+
+```js
+// packages/react-reconciler/src/ReactFiberReconciler.js
+export function updateContainer(
+  element: ReactNodeList,
+  container: OpaqueRoot,
+  parentComponent: ?React$Component<any, any>,
+  callback: ?Function,
+): ExpirationTime {
+  const current = container.current;
+  const currentTime = requestCurrentTime();
+  const expirationTime = computeExpirationForFiber(currentTime, current);
+  return updateContainerAtExpirationTime(
+    element,
+    container,
+    parentComponent,
+    expirationTime,
+    callback,
+  );
+}
+
+export function updateContainerAtExpirationTime(
+  element: ReactNodeList,
+  container: OpaqueRoot,
+  parentComponent: ?React$Component<any, any>,
+  expirationTime: ExpirationTime,
+  callback: ?Function,
+) {
+  // TODO: If this is a nested container, this won't be the root.
+  const current = container.current;
+
+  const context = getContextForSubtree(parentComponent);
+  if (container.context === null) {
+    container.context = context;
+  } else {
+    container.pendingContext = context;
+  }
+
+  return scheduleRootUpdate(current, element, expirationTime, callback);
+}
+
+function scheduleRootUpdate(
+  current: Fiber,
+  element: ReactNodeList,
+  expirationTime: ExpirationTime,
+  callback: ?Function,
+) {
+  const update = createUpdate(expirationTime);
+  // Caution: React DevTools currently depends on this property
+  // being called "element".
+  update.payload = {element};
+
+  callback = callback === undefined ? null : callback;
+  if (callback !== null) {
+    warningWithoutStack(
+      typeof callback === 'function',
+      'render(...): Expected the last optional `callback` argument to be a ' +
+        'function. Instead received: %s.',
+      callback,
+    );
+    update.callback = callback;
+  }
+
+  flushPassiveEffects();
+  enqueueUpdate(current, update);
+  scheduleWork(current, expirationTime);
+
+  return expirationTime;
+}
+```
+
+UpdateQueue 的结构：
+
+```js
+// packages/react-reconciler/src/ReactUpdateQueue.js
+export function createUpdateQueue<State>(baseState: State): UpdateQueue<State> {
+  const queue: UpdateQueue<State> = {
+    baseState,
+    firstUpdate: null,
+    lastUpdate: null,
+    firstCapturedUpdate: null,
+    lastCapturedUpdate: null,
+    firstEffect: null,
+    lastEffect: null,
+    firstCapturedEffect: null,
+    lastCapturedEffect: null,
+  };
+  return queue;
+}
+export const UpdateState = 0;
+export const ReplaceState = 1;
+export const ForceUpdate = 2;
+export const CaptureUpdate = 3;
+export function createUpdate(expirationTime: ExpirationTime): Update<*> {
+  return {
+    expirationTime: expirationTime,
+
+    tag: UpdateState,
+    payload: null,
+    callback: null,
+
+    next: null,
+    nextEffect: null,
+  };
+}
+```
+
+Fiber 的结构：
+
+```js
+/ A Fiber is work on a Component that needs to be done or was done. There can
+// be more than one per component.
+export type Fiber = {|
+  // These first fields are conceptually members of an Instance. This used to
+  // be split into a separate type and intersected with the other Fiber fields,
+  // but until Flow fixes its intersection bugs, we've merged them into a
+  // single type.
+
+  // An Instance is shared between all versions of a component. We can easily
+  // break this out into a separate object to avoid copying so much to the
+  // alternate versions of the tree. We put this on a single object for now to
+  // minimize the number of objects created during the initial render.
+
+  // Tag identifying the type of fiber.
+  tag: WorkTag,
+
+  // Unique identifier of this child.
+  key: null | string,
+
+  // The value of element.type which is used to preserve the identity during
+  // reconciliation of this child.
+  elementType: any,
+
+  // The resolved function/class/ associated with this fiber.
+  type: any,
+
+  // The local state associated with this fiber.
+  stateNode: any,
+
+  // Conceptual aliases
+  // parent : Instance -> return The parent happens to be the same as the
+  // return fiber since we've merged the fiber and instance.
+
+  // Remaining fields belong to Fiber
+
+  // The Fiber to return to after finishing processing this one.
+  // This is effectively the parent, but there can be multiple parents (two)
+  // so this is only the parent of the thing we're currently processing.
+  // It is conceptually the same as the return address of a stack frame.
+  return: Fiber | null,
+
+  // Singly Linked List Tree Structure.
+  child: Fiber | null,
+  sibling: Fiber | null,
+  index: number,
+
+  // The ref last used to attach this node.
+  // I'll avoid adding an owner field for prod and model that as functions.
+  ref: null | (((handle: mixed) => void) & {_stringRef: ?string}) | RefObject,
+
+  // Input is the data coming into process this fiber. Arguments. Props.
+  pendingProps: any, // This type will be more specific once we overload the tag.
+  memoizedProps: any, // The props used to create the output.
+
+  // A queue of state updates and callbacks.
+  updateQueue: UpdateQueue<any> | null,
+
+  // The state used to create the output
+  memoizedState: any,
+
+  // A linked-list of contexts that this fiber depends on
+  contextDependencies: ContextDependencyList | null,
+
+  // Bitfield that describes properties about the fiber and its subtree. E.g.
+  // the ConcurrentMode flag indicates whether the subtree should be async-by-
+  // default. When a fiber is created, it inherits the mode of its
+  // parent. Additional flags can be set at creation time, but after that the
+  // value should remain unchanged throughout the fiber's lifetime, particularly
+  // before its child fibers are created.
+  mode: TypeOfMode,
+
+  // Effect
+  effectTag: SideEffectTag,
+
+  // Singly linked list fast path to the next fiber with side-effects.
+  nextEffect: Fiber | null,
+
+  // The first and last fiber with side-effect within this subtree. This allows
+  // us to reuse a slice of the linked list when we reuse the work done within
+  // this fiber.
+  firstEffect: Fiber | null,
+  lastEffect: Fiber | null,
+
+  // Represents a time in the future by which this work should be completed.
+  // Does not include work found in its subtree.
+  expirationTime: ExpirationTime,
+
+  // This is used to quickly determine if a subtree has no pending changes.
+  childExpirationTime: ExpirationTime,
+
+  // This is a pooled version of a Fiber. Every fiber that gets updated will
+  // eventually have a pair. There are cases when we can clean up pairs to save
+  // memory if we need to.
+  alternate: Fiber | null,
+
+  // Time spent rendering this Fiber and its descendants for the current update.
+  // This tells us how well the tree makes use of sCU for memoization.
+  // It is reset to 0 each time we render and only updated when we don't bailout.
+  // This field is only set when the enableProfilerTimer flag is enabled.
+  actualDuration?: number,
+
+  // If the Fiber is currently active in the "render" phase,
+  // This marks the time at which the work began.
+  // This field is only set when the enableProfilerTimer flag is enabled.
+  actualStartTime?: number,
+
+  // Duration of the most recent render time for this Fiber.
+  // This value is not updated when we bailout for memoization purposes.
+  // This field is only set when the enableProfilerTimer flag is enabled.
+  selfBaseDuration?: number,
+
+  // Sum of base times for all descedents of this Fiber.
+  // This value bubbles up during the "complete" phase.
+  // This field is only set when the enableProfilerTimer flag is enabled.
+  treeBaseDuration?: number,
+
+  // Conceptual aliases
+  // workInProgress : Fiber ->  alternate The alternate used for reuse happens
+  // to be the same as work in progress.
+  // __DEV__ only
+  _debugID?: number,
+  _debugSource?: Source | null,
+  _debugOwner?: Fiber | null,
+  _debugIsCurrentlyTiming?: boolean,
+|};
+```
+
+expirationTime 的理解 - 优先级的概念，
+
+## 笔记
+
+FiberRoot 的结构：
+
+```js
+type BaseFiberRootProperties = {|
+  containerInfo: any,
+  pendingChildren: any,
+  current: Fiber,
+  earliestSuspendedTime: ExpirationTime,
+  latestSuspendedTime: ExpirationTime,
+  earliestPendingTime: ExpirationTime,
+  latestPendingTime: ExpirationTime,
+  latestPingedTime: ExpirationTime,
+
+  pingCache:
+    | WeakMap<Thenable, Set<ExpirationTime>>
+    | Map<Thenable, Set<ExpirationTime>>
+    | null,
+
+  didError: boolean,
+
+  pendingCommitExpirationTime: ExpirationTime,
+  finishedWork: Fiber | null,
+  timeoutHandle: TimeoutHandle | NoTimeout,
+  context: Object | null,
+  pendingContext: Object | null,
+  +hydrate: boolean,
+  nextExpirationTimeToWorkOn: ExpirationTime,
+  expirationTime: ExpirationTime,
+  firstBatch: Batch | null,
+  nextScheduledRoot: FiberRoot | null,
+|};
+type ProfilingOnlyFiberRootProperties = {|
+  interactionThreadID: number,
+  memoizedInteractions: Set<Interaction>,
+  pendingInteractionMap: PendingInteractionMap,
+|};
+export type FiberRoot = {
+  ...BaseFiberRootProperties,
+  ...ProfilingOnlyFiberRootProperties,
+};
+```
+
+---
+关于 expirationTime
+
+`packages/react-reconciler/src/ReactFiberScheduler.js` 这个文件中有很多的局部变量：
+
+- expirationContext: NoWork
+表示新来的 update 应该用的 expirationContext。但是如果他是 0，则表示使用默认策略：
+异步模式用 async update
+同步模式用 sync update
+- isWorking: false
+- isCommitting: false
+- let isRendering: boolean = false;
+调度器现在所处的工作阶段：
+!isWorking && !isCommitting 空闲阶段
+isWorking && !isCommitting render 阶段
+isWorking && isCommitting commit 阶段
+- extRenderExpirationTime
+
+- let isBatchingUpdates: boolean = false;
+- let isUnbatchingUpdates: boolean = false;
+- let isBatchingInteractiveUpdates: boolean = false;
+这三个变量用来计算 expirationTime 的计算标准。
+调用这些方法 `batchedUpdates()/unbatchedUpdates()/interactiveUpdates()` 产生 update 期间，这三个变量会临时设定。update 产生完，恢复原始状态
+
+- let rootWithPendingPassiveEffects: FiberRoot | null = null;
+- let passiveEffectCallbackHandle: * = null;
+- let passiveEffectCallback: * = null;
+这三个是什么意思？
+
+- let nextUnitOfWork: Fiber | null = null;
+- let nextRoot: FiberRoot | null = null; 正在处理的 fiberRoot
+
+- let firstScheduledRoot: FiberRoot | null = null;
+- let lastScheduledRoot: FiberRoot | null = null;
+FiberRoot 的链表，并且是首位相接的
+fiberRoot.nextScheduledRoot 指向这个链表中的下一个 FiberRoot
+如果 fiberRoot.nextScheduledRoot 没有指向，说明这个 FiberRoot 之前没有被加入过 Schedule
+
+- nextRenderExpirationTime
+- nextRoot
+- nextUnitOfWork
+- nextLatestAbsoluteTimeoutMs
+- nextRenderDidError
+
+关于优先级：
+
+expirationTime 越大，表示这个 uddate 优先级越高、越快处理
+expirationTime 最大值是 SYNC，表示这是一个需要同步处理的 update
+
