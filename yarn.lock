@@ -5698,9 +5698,9 @@ gatsby-recipes@^0.1.49:
     ws "^7.3.0"
     xstate "^4.11.0"
 
-gatsby-remark-highlight-code@^1.4.3:
-  version "1.4.3"
-  resolved "https://registry.npm.taobao.org/gatsby-remark-highlight-code/download/gatsby-remark-highlight-code-1.4.3.tgz#4b3fdaacaf76131c73284900e1f74598a6f42480"
+gatsby-remark-highlight-code@^1.4.4:
+  version "1.4.4"
+  resolved "https://registry.npm.taobao.org/gatsby-remark-highlight-code/download/gatsby-remark-highlight-code-1.4.4.tgz#5d803c97e323c643fa2bd57321cc8522b3a1e4b0"
   dependencies:
     gatsby-node-helpers "^0.3.0"
     lodash "^4.17.15"
