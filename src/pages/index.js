@@ -22,7 +22,7 @@ export default function ({ data: { allMdx: { edges } } }) {
     <Blog>
       <Posts>
         {
-          edges.filter((edge) => true/*edge.node.frontmatter.publish*/).map(edge => (
+          edges.filter((edge) => /*true*/edge.node.frontmatter.publish).map(edge => (
             <Thumb key={edge.node.id} {...edge.node} />
           ))
         }
