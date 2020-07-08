@@ -1,3 +1,7 @@
+require("dotenv").config({
+  path: `.env.${process.env.GATSBY_ACTIVE_ENV || process.env.NODE_ENV || `development`}`,
+})
+
 module.exports = {
   siteMetadata: {
     title: `铜豆子`,
@@ -20,18 +24,18 @@ module.exports = {
     {
       resolve: `gatsby-plugin-valine`,
       options: {
-        appId: 'oGAoMTiX74JnL2KRBE8SkMfX-gzGzoHsz',
-        appKey: 'a91VD3ESsKrbsz4PUwWldgGz',
-        notify:false,
-        verify:false,
-        avatar:'mp',
+        appId: process.env.VALINE_APPID,
+        appKey: process.env.VALINE_APPKEY,
+        notify: false,
+        verify: false,
+        avatar: 'mp',
         placeholder: '天空不曾留下翅膀的痕迹，但我已经飞过。。。',
       },
     },
     {
       resolve: `gatsby-plugin-google-analytics`,
       options: {
-        trackingId: 'UA-106536396-1',
+        trackingId: process.env.GA_TRACKING_ID,
       },
     },
     {
@@ -44,10 +48,10 @@ module.exports = {
             options: {
               // https://www.gatsbyjs.org/packages/gatsby-remark-highlight-code/?=code
               // https://prismjs.com/
-              terminal: 'carbon',
+              terminal: `carbon`,
               editable: false,
               lineNumbers: false,
-              theme: 'monokai'
+              theme: `monokai`
             }
           },
           {

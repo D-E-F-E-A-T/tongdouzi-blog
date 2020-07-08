@@ -18,11 +18,12 @@ const Posts = styled(StackGrid).attrs({
 `
 
 export default function ({ data: { allMdx: { edges } } }) {
+  console.log('process.env.GATSBY_ACTIVE_ENV', )
   return (
     <Blog>
       <Posts>
         {
-          edges.filter((edge) => /*true*/edge.node.frontmatter.publish).map(edge => (
+          edges.filter((edge) => process.env.GATSBY_ACTIVE_ENV === 'development' ? true : edge.node.frontmatter.publish).map(edge => (
             <Thumb key={edge.node.id} {...edge.node} />
           ))
         }
